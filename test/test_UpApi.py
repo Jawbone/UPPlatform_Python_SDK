@@ -3,44 +3,70 @@ Unit tests for upapi.__init__
 """
 import unittest
 import upapi
-import urlparse
 
 
-def get_redirect_param(url):
-    """
-    Retrieve the redirect_uri parameter from the URL.
-
-    :param url: URL to parse
-    :return: the redirect_uri param
-    """
-    return urlparse.parse_qs(urlparse.urlparse(url).query)['redirect_uri'][0]
-
-
-class TestGetRedirectUrl(unittest.TestCase):
-    def test_get_redirect_url(self):
+class TestUpApi(unittest.TestCase):
+    def setUp(self):
         """
-        Unit tests for upapi.get_redirect_url
-
-        :return: None
+        Create the UpApi object.
         """
-        #
-        # Explicit redirect_url
-        #
-        url = 'https://explicit.com'
-        redirect_url = upapi.get_redirect_url(app_url=url)
-        self.assertEqual(get_redirect_param(redirect_url), url)
+        upapi.client_id = 'client_id'
+        upapi.client_secret = 'client_secret'
+        upapi.redirect_uri = 'redirect_uri'
+        upapi.scope = ['scope0', 'scope1']
+        self.up = upapi.UpApi()
+        super(TestUpApi, self).setUp()
+
+    def test___init__(self):
+        """
+        Verify defaulting of __init__ params
+        """
+        self.assertEqual(self.up.app_id, upapi.client_id)
+        self.assertEqual(self.up.app_secret, upapi.client_secret)
+        self.assertEqual(self.up._redirect_uri, upapi.redirect_uri)
+        self.assertEqual(self.up.app_scope, upapi.scope)
 
         #
-        # Global redirect uri
+        # Override properties
         #
-        url = 'https://global.com'
-        upapi.redirect_uri = url
-        redirect_url = upapi.get_redirect_url()
-        self.assertEqual(get_redirect_param(redirect_url), url)
+        app_id = 'app_id'
+        app_secret = 'app_secret'
+        app_redirect_uri = 'app_redirect_uri'
+        app_scope = 'app_scope'
+        self.up = upapi.UpApi(
+            app_id=app_id,
+            app_secret=app_secret,
+            app_redirect_uri=app_redirect_uri,
+            app_scope=app_scope)
+        self.assertEqual(self.up.app_id, app_id)
+        self.assertEqual(self.up.app_secret, app_secret)
+        self.assertEqual(self.up._redirect_uri, app_redirect_uri)
+        self.assertEqual(self.up.app_scope, app_scope)
 
-        #
-        # Override with redirect_url
-        #
+    def test_redirect_uri(self):
+        """
+        Verify setting redirect uri updates the UpApi and oauth objects.
+        """
+        default_oauth = self.up.oauth
         url = 'https://override.com'
-        redirect_url = upapi.get_redirect_url(app_url=url)
-        self.assertEqual(get_redirect_param(redirect_url), url)
+        self.up.redirect_uri = url
+        self.assertEqual(self.up.redirect_uri, url)
+        self.assertIsNot(self.up.oauth, default_oauth)
+
+    def test_tokens(self):
+        """
+        Verify setting tokens updates the UpApi and oauth objects.
+        """
+        default_oauth = self.up.oauth
+        tokens = {'token': 'foo'}
+        self.up.tokens = tokens
+        self.assertEqual(self.up.tokens, tokens)
+        self.assertIsNot(self.up.oauth, default_oauth)
+
+    # def test_get_up_tokens(self):
+    #     default_up = self.up
+    #
+    #     TODO: mock the requests_oauthlib object
+    #
+    #     self.up.get_up_tokens()
+    #     self.assertIsNot(self.up, default_up)
