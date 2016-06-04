@@ -9,16 +9,39 @@ import requests_oauthlib
 """
 Set these variables with the values for your app from https://jawbone.com/up/developer
 
-Example:
-import upapi
-upapi.client_id = ...
-
 If you have multiple redirect URLs, you can override this redirect_uri in your API calls.
+
+If you do not specify a token_saver, upapi will not automatically refresh expired tokens.
 """
 client_id = None
 client_secret = None
 redirect_uri = None
 scope = None
+token_saver = None
+tokens = None
+
+
+class SCOPES(object):
+    """
+    Refer to https://nudgestage.jawbone.com/up/developer/authentication for a definition of these scopes.
+    """
+    BASIC_READ = 'basic_read'
+    EXTENDED_READ = 'extended_read'
+    LOCATION_READ = 'location_read'
+    FRIENDS_READ = 'friends_read'
+    MOOD_READ = 'mood_read'
+    MOOD_WRITE = 'mood_write'
+    MOVE_READ = 'move_read'
+    MOVE_WRITE = 'move_write'
+    SLEEP_READ = 'sleep_read'
+    SLEEP_WRITE = 'sleep_write'
+    MEAL_READ = 'meal_read'
+    MEAL_WRITE = 'meal_write'
+    WEIGHT_READ = 'weight_read'
+    WEIGHT_WRITE = 'weight_write'
+    GENERIC_EVENT_READ = 'generic_event_read'
+    GENERIC_EVENT_WRITE = 'generic_event_write'
+    HEARTRATE_READ = 'heartrate_read'
 
 
 def get_redirect_url(override_url=None):
@@ -36,11 +59,22 @@ def get_redirect_url(override_url=None):
 def get_tokens(callback_url):
     """
     Retrieve the OAuth tokens from the server based on the authorization code in the callback_url.
-
+up.
     :param callback_url: The URL on your server that Jawbone sent the user back to
     :return: a dictionary containing the tokens
     """
-    return UpApi().get_up_tokens(callback_url)
+    global tokens
+    tokens = UpApi().get_up_tokens(callback_url)
+    return tokens
+
+
+def get_refresh_token():
+    """
+    Retrieve the OAuth refresh token if you want to refresh manually.
+
+    :return: the refresh token
+    """
+    return UpApi().refresh_token
 
 
 class UpApi(object):
@@ -53,7 +87,8 @@ class UpApi(object):
             app_secret=None,
             app_redirect_uri=None,
             app_scope=None,
-            tokens=None):
+            app_token_saver=None,
+            app_tokens=None):
         """
         Create an UpApi object to manage the OAuth connection.
 
@@ -61,8 +96,14 @@ class UpApi(object):
         :param app_secret: App Secret from UP developer portal
         :param app_redirect_uri: one of your OAuth redirect URLs
         :param app_scope: list of permissions a user will have to approve
-        :param tokens: tokens from a previously OAuth'd user
+        :param app_token_saver: method to call to save token on refresh
+        :param app_tokens: tokens from a previously OAuth'd user
         """
+        self.oauth = None
+
+        #
+        # Use the module scope to default any unpassed args
+        #
         if app_id is None:
             self.app_id = client_id
         else:
@@ -79,8 +120,15 @@ class UpApi(object):
             self.app_scope = scope
         else:
             self.app_scope = app_scope
-        self._tokens = tokens
-        self.oauth = None
+        if app_token_saver is None:
+            self.app_token_saver = token_saver
+        else:
+            self.app_token_saver = app_token_saver
+        if app_tokens is None:
+            self._tokens = tokens
+        else:
+            self._tokens = app_tokens
+
         self._refresh_oauth()
         super(UpApi, self).__init__()
 
@@ -91,11 +139,20 @@ class UpApi(object):
         2. update the user's tokens
         3. update the redirect_uri
         """
+        if self.app_token_saver is None:
+            refresh_kwargs = {}
+        else:
+            refresh_kwargs = {
+                'auto_refresh_url': 'https://jawbone.com/auth/oauth2/token',
+                'auto_refresh_kwargs': {'client_id': self.app_id, 'client_secret': self.app_secret},
+                'token_updater': self.app_token_saver}
+
         self.oauth = requests_oauthlib.OAuth2Session(
             client_id=self.app_id,
             scope=self.app_scope,
             redirect_uri=self._redirect_uri,
-            token=self.tokens)
+            token=self.tokens,
+            **refresh_kwargs)
 
     @property
     def redirect_uri(self):
@@ -126,8 +183,8 @@ class UpApi(object):
         return self._tokens
 
     @tokens.setter
-    def tokens(self, tokens):
-        self._tokens = tokens
+    def tokens(self, new_tokens):
+        self._tokens = new_tokens
         self._refresh_oauth()
 
     def get_up_tokens(self, callback_url):
@@ -143,3 +200,12 @@ class UpApi(object):
             authorization_response=callback_url,
             client_secret=self.app_secret)
         return self._tokens
+
+    @property
+    def refresh_token(self):
+        """
+        Get the OAuth refresh token.
+
+        :return: the refresh token
+        """
+        return self._tokens['refresh_token']
