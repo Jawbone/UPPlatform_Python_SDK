@@ -63,6 +63,11 @@ class TestUpApi(unittest.TestCase):
 
     @mock.patch('upapi.requests_oauthlib.OAuth2Session', autospec=True)
     def test__refresh_oauth(self, mock_oauth):
+        """
+        Verify that the OAuth2Session's auto refresh is set correctly when instantiating a new oauth object.
+
+        :param mock_oauth: mocked OAuth2Session
+        """
         #
         # No token saver -> no auto refresh
         #
@@ -102,15 +107,37 @@ class TestUpApi(unittest.TestCase):
         Verify setting tokens updates the UpApi and oauth objects.
         """
         default_oauth = self.up.oauth
-        tokens = {'token': 'foo'}
+        tokens = {'access_token': 'foo'}
         self.up.tokens = tokens
         self.assertEqual(self.up.tokens, tokens)
         self.assertIsNot(self.up.oauth, default_oauth)
 
+    @mock.patch('upapi.requests_oauthlib.OAuth2Session.refresh_token')
+    def test_refresh_tokens(self, mock_refresh):
+        """
+        Verify the requests_oauthlib call to refresh the tokens  and that it updates the UpApi object.
+
+        :param mock_refresh:
+        :return:
+        """
+        ret_tokens = {'access_token': 'refreshed_access'}
+        mock_refresh.return_value = ret_tokens
+        self.up.refresh_tokens()
+        mock_refresh.assert_called_with(
+            'https://jawbone.com/auth/oauth2/token',
+            client_id=upapi.client_id,
+            client_secret=upapi.client_secret)
+        self.assertEqual(self.up.tokens, ret_tokens)
+
 
 class TestGetTokens(unittest.TestCase):
     @mock.patch('upapi.requests_oauthlib.OAuth2Session.fetch_token', autospec=True)
-    def test_get_tokens(self, mock_fetch_tokens):
+    def test_get_tokens(self, mock_fetch_token):
+        """
+        Verify that global tokens get set correctly when we retrieve tokens from the API.
+
+        :param mock_fetch_tokens: mock OAuth lib function
+        """
         upapi.client_id = 'client_id'
         upapi.client_secret = 'client_secret'
         upapi.redirect_uri = 'redirect_uri'
@@ -124,7 +151,7 @@ class TestGetTokens(unittest.TestCase):
         #
         # Mock the tokens
         #
-        mock_fetch_tokens.return_value = {
+        mock_fetch_token.return_value = {
             'access_token': 'mock_token',
             'token_type': 'Bearer',
             'expires_in': 31536000,
@@ -137,3 +164,18 @@ class TestGetTokens(unittest.TestCase):
         #
         self.assertIsNotNone(upapi.tokens)
         self.assertEqual(upapi.UpApi().tokens, upapi.tokens)
+
+
+class TestRefreshTokens(unittest.TestCase):
+
+    @mock.patch('upapi.requests_oauthlib.OAuth2Session.refresh_token', autospec=True)
+    def test_refresh_tokens(self, mock_refresh):
+        """
+        Verify that global tokens get set correctly when we retrieve tokens from the API.
+
+        :param mock_refresh: mock OAuth lib function
+        """
+        ret_tokens = {'access_token': 'refreshed_access'}
+        mock_refresh.return_value = ret_tokens
+        upapi.refresh_tokens()
+        self.assertEqual(upapi.tokens, ret_tokens)

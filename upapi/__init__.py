@@ -59,7 +59,7 @@ def get_redirect_url(override_url=None):
 def get_tokens(callback_url):
     """
     Retrieve the OAuth tokens from the server based on the authorization code in the callback_url.
-up.
+
     :param callback_url: The URL on your server that Jawbone sent the user back to
     :return: a dictionary containing the tokens
     """
@@ -68,13 +68,15 @@ up.
     return tokens
 
 
-def get_refresh_token():
+def refresh_tokens():
     """
-    Retrieve the OAuth refresh token if you want to refresh manually.
+    Manually refresh your OAuth tokens.
 
-    :return: the refresh token
+    :return: the new tokens
     """
-    return UpApi().refresh_token
+    global tokens
+    tokens = UpApi().refresh_tokens()
+    return tokens
 
 
 class UpApi(object):
@@ -201,11 +203,12 @@ class UpApi(object):
             client_secret=self.app_secret)
         return self._tokens
 
-    @property
-    def refresh_token(self):
+    def refresh_tokens(self):
         """
-        Get the OAuth refresh token.
-
-        :return: the refresh token
+        Refresh the current OAuth token.
         """
-        return self._tokens['refresh_token']
+        self._tokens = self.oauth.refresh_token(
+            'https://jawbone.com/auth/oauth2/token',
+            client_id=self.app_id,
+            client_secret=self.app_secret)
+        return self._tokens
