@@ -4,6 +4,8 @@ This is the Python SDK for the Jawbone UP API.
 For API details: https://jawbone.com/up/developer
 For SDK details: https://github.com/Jawbone/UPPlatform_Python_SDK
 """
+import endpoints
+import httplib
 import requests_oauthlib
 
 """
@@ -21,29 +23,6 @@ token_saver = None
 tokens = None
 
 
-class SCOPES(object):
-    """
-    Refer to https://nudgestage.jawbone.com/up/developer/authentication for a definition of these scopes.
-    """
-    BASIC_READ = 'basic_read'
-    EXTENDED_READ = 'extended_read'
-    LOCATION_READ = 'location_read'
-    FRIENDS_READ = 'friends_read'
-    MOOD_READ = 'mood_read'
-    MOOD_WRITE = 'mood_write'
-    MOVE_READ = 'move_read'
-    MOVE_WRITE = 'move_write'
-    SLEEP_READ = 'sleep_read'
-    SLEEP_WRITE = 'sleep_write'
-    MEAL_READ = 'meal_read'
-    MEAL_WRITE = 'meal_write'
-    WEIGHT_READ = 'weight_read'
-    WEIGHT_WRITE = 'weight_write'
-    GENERIC_EVENT_READ = 'generic_event_read'
-    GENERIC_EVENT_WRITE = 'generic_event_write'
-    HEARTRATE_READ = 'heartrate_read'
-
-
 def get_redirect_url(override_url=None):
     """
     Get the URL to redirect new users to allow your access to your application.
@@ -52,7 +31,7 @@ def get_redirect_url(override_url=None):
     :return: your app-specific URL
     """
     authorization_url, state = UpApi(app_redirect_uri=override_url).oauth.authorization_url(
-        'https://jawbone.com/auth/oauth2/auth')
+        endpoints.AUTH)
     return authorization_url
 
 
@@ -77,6 +56,15 @@ def refresh_tokens():
     global tokens
     tokens = UpApi().refresh_tokens()
     return tokens
+
+
+def disconnect():
+    """
+    Revoke the API access for this user.
+    """
+    UpApi().disconnect()
+    global tokens
+    tokens = None
 
 
 class UpApi(object):
@@ -145,7 +133,7 @@ class UpApi(object):
             refresh_kwargs = {}
         else:
             refresh_kwargs = {
-                'auto_refresh_url': 'https://jawbone.com/auth/oauth2/token',
+                'auto_refresh_url': endpoints.TOKEN,
                 'auto_refresh_kwargs': {'client_id': self.app_id, 'client_secret': self.app_secret},
                 'token_updater': self.app_token_saver}
 
@@ -198,7 +186,7 @@ class UpApi(object):
         :return: the token dictionary from the UP API
         """
         self._tokens = self.oauth.fetch_token(
-            'https://jawbone.com/auth/oauth2/token',
+            endpoints.TOKEN,
             authorization_response=callback_url,
             client_secret=self.app_secret)
         return self._tokens
@@ -208,7 +196,26 @@ class UpApi(object):
         Refresh the current OAuth token.
         """
         self._tokens = self.oauth.refresh_token(
-            'https://jawbone.com/auth/oauth2/token',
+            endpoints.TOKEN,
             client_id=self.app_id,
             client_secret=self.app_secret)
         return self._tokens
+
+    def disconnect(self):
+        """
+        Revoke access for this user.
+        """
+        resp = self.oauth.delete(endpoints.DISCONNECT)
+        if resp.status_code == httplib.OK:
+            self._tokens = None
+            self.oauth = None
+        else:
+            resp.raise_for_status()
+            raise UnexpectedAPIResponse('%s %s' % (resp.status_code, resp.text))
+
+
+class UnexpectedAPIResponse(Exception):
+    """
+    UpApi raises this for API responses other than expected (according to the documentation)
+    """
+    pass

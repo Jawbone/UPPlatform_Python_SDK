@@ -1,9 +1,12 @@
 """
 Unit tests for upapi.__init__
 """
+import httplib
 import mock
+import requests.exceptions
 import unittest
 import upapi
+import upapi.scopes
 
 
 def token_saver(_):
@@ -15,6 +18,23 @@ def token_saver(_):
     pass
 
 
+class FakeResponse(object):
+    """
+    Fake ResponseObject for mocking requests_oauthlib.
+    """
+
+    def __init__(self, status_code):
+        self.status_code = status_code
+        self.text = 'FakeResponse'
+
+    def raise_for_status(self):
+        """
+        Fake the behavior by raising for any 40x/50x
+        """
+        if 400 <= self.status_code < 600:
+            raise requests.exceptions.HTTPError
+
+
 class TestUpApi(unittest.TestCase):
     def setUp(self):
         """
@@ -23,7 +43,7 @@ class TestUpApi(unittest.TestCase):
         upapi.client_id = 'client_id'
         upapi.client_secret = 'client_secret'
         upapi.redirect_uri = 'redirect_uri'
-        upapi.scope = [upapi.SCOPES.EXTENDED_READ, upapi.SCOPES.MOVE_READ]
+        upapi.scope = [upapi.scopes.EXTENDED_READ, upapi.scopes.MOVE_READ]
         self.up = upapi.UpApi()
         super(TestUpApi, self).setUp()
 
@@ -44,7 +64,7 @@ class TestUpApi(unittest.TestCase):
         app_id = 'app_id'
         app_secret = 'app_secret'
         app_redirect_uri = 'app_redirect_uri'
-        app_scope = [upapi.SCOPES.FRIENDS_READ]
+        app_scope = [upapi.scopes.FRIENDS_READ]
         app_token_saver = token_saver
         app_tokens = 'app_tokens'
         self.up = upapi.UpApi(
@@ -129,6 +149,33 @@ class TestUpApi(unittest.TestCase):
             client_secret=upapi.client_secret)
         self.assertEqual(self.up.tokens, ret_tokens)
 
+    @mock.patch('upapi.requests_oauthlib.OAuth2Session.delete', autospec=True)
+    def test_disconnect(self, mock_delete):
+        """
+        Verify that a disconnect sets the tokens and oauth to None.
+
+        :param mock_delete: mock OAuth lib function
+        """
+        #
+        # 404 should raise from the library
+        #
+        mock_delete.return_value = FakeResponse(httplib.NOT_FOUND)
+        self.assertRaises(requests.exceptions.HTTPError, self.up.disconnect)
+
+        #
+        # Non-200 and Non-40x/50x should raise from the SDK.
+        #
+        mock_delete.return_value = FakeResponse(httplib.SEE_OTHER)
+        self.assertRaises(upapi.UnexpectedAPIResponse, self.up.disconnect)
+
+        #
+        # Successful disconnect should clear the tokens
+        #
+        mock_delete.return_value = FakeResponse(httplib.OK)
+        self.up.disconnect()
+        self.assertIsNone(self.up._tokens)
+        self.assertIsNone(self.up.oauth)
+
 
 class TestGetTokens(unittest.TestCase):
     @mock.patch('upapi.requests_oauthlib.OAuth2Session.fetch_token', autospec=True)
@@ -136,12 +183,12 @@ class TestGetTokens(unittest.TestCase):
         """
         Verify that global tokens get set correctly when we retrieve tokens from the API.
 
-        :param mock_fetch_tokens: mock OAuth lib function
+        :param mock_fetch_token: mock OAuth lib function
         """
         upapi.client_id = 'client_id'
         upapi.client_secret = 'client_secret'
         upapi.redirect_uri = 'redirect_uri'
-        upapi.scope = [upapi.SCOPES.EXTENDED_READ, upapi.SCOPES.MOVE_READ]
+        upapi.scope = [upapi.scopes.EXTENDED_READ, upapi.scopes.MOVE_READ]
 
         #
         # No tokens because we haven't set them.
@@ -167,7 +214,6 @@ class TestGetTokens(unittest.TestCase):
 
 
 class TestRefreshTokens(unittest.TestCase):
-
     @mock.patch('upapi.requests_oauthlib.OAuth2Session.refresh_token', autospec=True)
     def test_refresh_tokens(self, mock_refresh):
         """
@@ -179,3 +225,17 @@ class TestRefreshTokens(unittest.TestCase):
         mock_refresh.return_value = ret_tokens
         upapi.refresh_tokens()
         self.assertEqual(upapi.tokens, ret_tokens)
+
+
+class TestDisconnect(unittest.TestCase):
+    @mock.patch('upapi.requests_oauthlib.OAuth2Session.delete', autospec=True)
+    def test_disconnect(self, mock_delete):
+        """
+        Verify that a disconnect makes the global tokens None.
+
+        :param mock_delete: mock OAuth lib function
+        """
+        upapi.tokens = {'access_token': 'access_token'}
+        mock_delete.return_value = FakeResponse(httplib.OK)
+        upapi.disconnect()
+        self.assertIsNone(upapi.tokens)
