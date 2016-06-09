@@ -23,16 +23,11 @@ class FakeResponse(object):
     Fake ResponseObject for mocking requests_oauthlib.
     """
 
-    def __init__(self, status_code):
+    def __init__(self, status_code, raise_for_status=None):
         self.status_code = status_code
         self.text = 'FakeResponse'
-
-    def raise_for_status(self):
-        """
-        Fake the behavior by raising for any 40x/50x
-        """
-        if 400 <= self.status_code < 600:
-            raise requests.exceptions.HTTPError
+        if raise_for_status is not None:
+            self.raise_for_status = raise_for_status
 
 
 class TestUpApi(unittest.TestCase):
@@ -150,7 +145,8 @@ class TestUpApi(unittest.TestCase):
         self.assertEqual(self.up.tokens, ret_tokens)
 
     @mock.patch('upapi.requests_oauthlib.OAuth2Session.delete', autospec=True)
-    def test_disconnect(self, mock_delete):
+    @mock.patch('upapi.requests_oauthlib.requests.Response.raise_for_status')
+    def test_disconnect(self, mock_raise, mock_delete):
         """
         Verify that a disconnect sets the tokens and oauth to None.
 
@@ -159,13 +155,15 @@ class TestUpApi(unittest.TestCase):
         #
         # 404 should raise from the library
         #
-        mock_delete.return_value = FakeResponse(httplib.NOT_FOUND)
+        mock_raise.side_effect = requests.exceptions.HTTPError
+        mock_delete.return_value = FakeResponse(httplib.NOT_FOUND, raise_for_status=mock_raise)
         self.assertRaises(requests.exceptions.HTTPError, self.up.disconnect)
 
         #
         # Non-200 and Non-40x/50x should raise from the SDK.
         #
-        mock_delete.return_value = FakeResponse(httplib.SEE_OTHER)
+        mock_raise.side_effect = None
+        mock_delete.return_value = FakeResponse(httplib.SEE_OTHER, raise_for_status=mock_raise)
         self.assertRaises(upapi.UnexpectedAPIResponse, self.up.disconnect)
 
         #
