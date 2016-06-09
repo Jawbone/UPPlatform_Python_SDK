@@ -59,7 +59,7 @@ class TestUpApi(unittest.TestCase):
         self.assertEqual(self.up._redirect_uri, upapi.redirect_uri)
         self.assertEqual(self.up.app_scope, upapi.scope)
         self.assertEqual(self.up.app_token_saver, upapi.token_saver)
-        self.assertEqual(self.up._tokens, upapi.tokens)
+        self.assertEqual(self.up._token, upapi.token)
 
         #
         # Override properties
@@ -69,20 +69,20 @@ class TestUpApi(unittest.TestCase):
         app_redirect_uri = 'app_redirect_uri'
         app_scope = [upapi.scopes.FRIENDS_READ]
         app_token_saver = token_saver
-        app_tokens = 'app_tokens'
+        app_token = 'app_token'
         self.up = upapi.UpApi(
             app_id=app_id,
             app_secret=app_secret,
             app_redirect_uri=app_redirect_uri,
             app_scope=app_scope,
             app_token_saver=app_token_saver,
-            app_tokens=app_tokens)
+            app_token=app_token)
         self.assertEqual(self.up.app_id, app_id)
         self.assertEqual(self.up.app_secret, app_secret)
         self.assertEqual(self.up._redirect_uri, app_redirect_uri)
         self.assertEqual(self.up.app_scope, app_scope)
         self.assertEqual(self.up.app_token_saver, app_token_saver)
-        self.assertEqual(self.up._tokens, app_tokens)
+        self.assertEqual(self.up._token, app_token)
 
     @mock.patch('upapi.requests_oauthlib.OAuth2Session')
     def test__refresh_oauth(self, mock_oauth):
@@ -99,7 +99,7 @@ class TestUpApi(unittest.TestCase):
             client_id=upapi.client_id,
             redirect_uri=upapi.redirect_uri,
             scope=upapi.scope,
-            token=upapi.tokens)
+            token=upapi.token)
         self.assertTrue(self.up.oauth.headers['User-Agent'].startswith(upapi.USERAGENT))
 
         #
@@ -111,7 +111,7 @@ class TestUpApi(unittest.TestCase):
             client_id=upapi.client_id,
             redirect_uri=upapi.redirect_uri,
             scope=upapi.scope,
-            token=upapi.tokens,
+            token=upapi.token,
             auto_refresh_url=upapi.endpoints.TOKEN,
             auto_refresh_kwargs={'client_id': upapi.client_id, 'client_secret': upapi.client_secret},
             token_updater=upapi.token_saver)
@@ -127,38 +127,38 @@ class TestUpApi(unittest.TestCase):
         self.assertEqual(self.up.redirect_uri, url)
         self.assertIsNot(self.up.oauth, default_oauth)
 
-    def test_tokens(self):
+    def test_token(self):
         """
-        Verify setting tokens updates the UpApi and oauth objects.
+        Verify setting token updates the UpApi and oauth objects.
         """
         default_oauth = self.up.oauth
-        tokens = {'access_token': 'foo'}
-        self.up.tokens = tokens
-        self.assertEqual(self.up.tokens, tokens)
+        token = {'access_token': 'foo'}
+        self.up.token = token
+        self.assertEqual(self.up.token, token)
         self.assertIsNot(self.up.oauth, default_oauth)
 
     @mock.patch('upapi.requests_oauthlib.OAuth2Session.refresh_token')
-    def test_refresh_tokens(self, mock_refresh):
+    def test_refresh_token(self, mock_refresh):
         """
-        Verify the requests_oauthlib call to refresh the tokens  and that it updates the UpApi object.
+        Verify the requests_oauthlib call to refresh the token and that it updates the UpApi object.
 
         :param mock_refresh:
         :return:
         """
-        ret_tokens = {'access_token': 'refreshed_access'}
-        mock_refresh.return_value = ret_tokens
-        self.up.refresh_tokens()
+        ret_token = {'access_token': 'refreshed_access'}
+        mock_refresh.return_value = ret_token
+        self.up.refresh_token()
         mock_refresh.assert_called_with(
             upapi.endpoints.TOKEN,
             client_id=upapi.client_id,
             client_secret=upapi.client_secret)
-        self.assertEqual(self.up.tokens, ret_tokens)
+        self.assertEqual(self.up.token, ret_token)
 
     @mock.patch('upapi.requests_oauthlib.OAuth2Session.delete', autospec=True)
     @mock.patch('upapi.requests_oauthlib.requests.Response.raise_for_status')
     def test_disconnect(self, mock_raise, mock_delete):
         """
-        Verify that a disconnect sets the tokens and oauth to None.
+        Verify that a disconnect sets the token and oauth to None.
 
         :param mock_delete: mock OAuth lib function
         """
@@ -177,19 +177,19 @@ class TestUpApi(unittest.TestCase):
         self.assertRaises(upapi.UnexpectedAPIResponse, self.up.disconnect)
 
         #
-        # Successful disconnect should clear the tokens
+        # Successful disconnect should clear the token
         #
         mock_delete.return_value = FakeResponse(httplib.OK)
         self.up.disconnect()
-        self.assertIsNone(self.up._tokens)
+        self.assertIsNone(self.up._token)
         self.assertIsNone(self.up.oauth)
 
 
-class TestGetTokens(unittest.TestCase):
+class TestGetToken(unittest.TestCase):
     @mock.patch('upapi.requests_oauthlib.OAuth2Session.fetch_token', autospec=True)
-    def test_get_tokens(self, mock_fetch_token):
+    def test_get_token(self, mock_fetch_token):
         """
-        Verify that global tokens get set correctly when we retrieve tokens from the API.
+        Verify that global token gets set correctly when we retrieve the token from the API.
 
         :param mock_fetch_token: mock OAuth lib function
         """
@@ -199,12 +199,12 @@ class TestGetTokens(unittest.TestCase):
         upapi.scope = [upapi.scopes.EXTENDED_READ, upapi.scopes.MOVE_READ]
 
         #
-        # No tokens because we haven't set them.
+        # No token because we haven't set them.
         #
-        self.assertIsNone(upapi.tokens)
+        self.assertIsNone(upapi.token)
 
         #
-        # Mock the tokens
+        # Mock the token
         #
         mock_fetch_token.return_value = {
             'access_token': 'mock_token',
@@ -212,38 +212,38 @@ class TestGetTokens(unittest.TestCase):
             'expires_in': 31536000,
             'refresh_token': 'mock_refresh',
             'expires_at': 1496509667.275609}
-        upapi.get_tokens('https://localhost/foo')
+        upapi.get_token('https://localhost/foo')
 
         #
-        # Global tokens should be set and UpApi should pick them up
+        # Global token should be set and UpApi should pick them up
         #
-        self.assertIsNotNone(upapi.tokens)
-        self.assertEqual(upapi.UpApi().tokens, upapi.tokens)
+        self.assertIsNotNone(upapi.token)
+        self.assertEqual(upapi.UpApi().token, upapi.token)
 
 
-class TestRefreshTokens(unittest.TestCase):
+class TestRefreshToken(unittest.TestCase):
     @mock.patch('upapi.requests_oauthlib.OAuth2Session.refresh_token', autospec=True)
-    def test_refresh_tokens(self, mock_refresh):
+    def test_refresh_token(self, mock_refresh):
         """
-        Verify that global tokens get set correctly when we retrieve tokens from the API.
+        Verify that global token gets set correctly when we retrieve the token from the API.
 
         :param mock_refresh: mock OAuth lib function
         """
-        ret_tokens = {'access_token': 'refreshed_access'}
-        mock_refresh.return_value = ret_tokens
-        upapi.refresh_tokens()
-        self.assertEqual(upapi.tokens, ret_tokens)
+        ret_token = {'access_token': 'refreshed_access'}
+        mock_refresh.return_value = ret_token
+        upapi.refresh_token()
+        self.assertEqual(upapi.token, ret_token)
 
 
 class TestDisconnect(unittest.TestCase):
     @mock.patch('upapi.requests_oauthlib.OAuth2Session.delete', autospec=True)
     def test_disconnect(self, mock_delete):
         """
-        Verify that a disconnect makes the global tokens None.
+        Verify that a disconnect makes the global token None.
 
         :param mock_delete: mock OAuth lib function
         """
-        upapi.tokens = {'access_token': 'access_token'}
+        upapi.token = {'access_token': 'access_token'}
         mock_delete.return_value = FakeResponse(httplib.OK)
         upapi.disconnect()
-        self.assertIsNone(upapi.tokens)
+        self.assertIsNone(upapi.token)

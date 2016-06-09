@@ -28,7 +28,7 @@ client_secret = None
 redirect_uri = None
 scope = None
 token_saver = None
-tokens = None
+token = None
 
 
 def get_redirect_url(override_url=None):
@@ -43,27 +43,27 @@ def get_redirect_url(override_url=None):
     return authorization_url
 
 
-def get_tokens(callback_url):
+def get_token(callback_url):
     """
-    Retrieve the OAuth tokens from the server based on the authorization code in the callback_url.
+    Retrieve the OAuth token from the server based on the authorization code in the callback_url.
 
     :param callback_url: The URL on your server that Jawbone sent the user back to
-    :return: a dictionary containing the tokens
+    :return: a dictionary containing the token
     """
-    global tokens
-    tokens = UpApi().get_up_tokens(callback_url)
-    return tokens
+    global token
+    token = UpApi().get_up_token(callback_url)
+    return token
 
 
-def refresh_tokens():
+def refresh_token():
     """
-    Manually refresh your OAuth tokens.
+    Manually refresh your OAuth token.
 
-    :return: the new tokens
+    :return: the new token
     """
-    global tokens
-    tokens = UpApi().refresh_tokens()
-    return tokens
+    global token
+    token = UpApi().refresh_token()
+    return token
 
 
 def disconnect():
@@ -71,8 +71,8 @@ def disconnect():
     Revoke the API access for this user.
     """
     UpApi().disconnect()
-    global tokens
-    tokens = None
+    global token
+    token = None
 
 
 class UpApi(object):
@@ -86,7 +86,7 @@ class UpApi(object):
             app_redirect_uri=None,
             app_scope=None,
             app_token_saver=None,
-            app_tokens=None):
+            app_token=None):
         """
         Create an UpApi object to manage the OAuth connection.
 
@@ -95,7 +95,7 @@ class UpApi(object):
         :param app_redirect_uri: one of your OAuth redirect URLs
         :param app_scope: list of permissions a user will have to approve
         :param app_token_saver: method to call to save token on refresh
-        :param app_tokens: tokens from a previously OAuth'd user
+        :param app_token: token from a previously OAuth'd user
         """
         self.oauth = None
 
@@ -122,10 +122,10 @@ class UpApi(object):
             self.app_token_saver = token_saver
         else:
             self.app_token_saver = app_token_saver
-        if app_tokens is None:
-            self._tokens = tokens
+        if app_token is None:
+            self._token = token
         else:
-            self._tokens = app_tokens
+            self._token = app_token
 
         self._refresh_oauth()
         super(UpApi, self).__init__()
@@ -134,7 +134,7 @@ class UpApi(object):
         """
         Get a new OAuth object. This gets called automatically when you
         1. create the object
-        2. update the user's tokens
+        2. update the user's token
         3. update the redirect_uri
         """
         if self.app_token_saver is None:
@@ -149,7 +149,7 @@ class UpApi(object):
             client_id=self.app_id,
             scope=self.app_scope,
             redirect_uri=self._redirect_uri,
-            token=self.tokens,
+            token=self.token,
             **refresh_kwargs)
         self.oauth.headers['User-Agent'] = '%s %s' % (USERAGENT, self.oauth.headers['User-Agent'])
 
@@ -173,42 +173,41 @@ class UpApi(object):
         self._refresh_oauth()
 
     @property
-    def tokens(self):
+    def token(self):
         """
-        The tokens from the OAuth handshake
+        The token from the OAuth handshake
 
-        :return: the tokens
+        :return: the token
         """
-        return self._tokens
+        return self._token
 
-    @tokens.setter
-    def tokens(self, new_tokens):
-        self._tokens = new_tokens
+    @token.setter
+    def token(self, new_token):
+        self._token = new_token
         self._refresh_oauth()
 
-    def get_up_tokens(self, callback_url):
+    def get_up_token(self, callback_url):
         """
-        Retrieve a fresh set of tokens after the user has logged in and approved your app (i.e., second half of the
-        OAuth handshake).
+        Retrieve a token after the user has logged in and approved your app (i.e., second half of the OAuth handshake).
 
         :param callback_url: The URL on your server that Jawbone sent the user back to
         :return: the token dictionary from the UP API
         """
-        self._tokens = self.oauth.fetch_token(
+        self._token = self.oauth.fetch_token(
             endpoints.TOKEN,
             authorization_response=callback_url,
             client_secret=self.app_secret)
-        return self._tokens
+        return self._token
 
-    def refresh_tokens(self):
+    def refresh_token(self):
         """
         Refresh the current OAuth token.
         """
-        self._tokens = self.oauth.refresh_token(
+        self._token = self.oauth.refresh_token(
             endpoints.TOKEN,
             client_id=self.app_id,
             client_secret=self.app_secret)
-        return self._tokens
+        return self._token
 
     def disconnect(self):
         """
@@ -216,7 +215,7 @@ class UpApi(object):
         """
         resp = self.oauth.delete(endpoints.DISCONNECT)
         if resp.status_code == httplib.OK:
-            self._tokens = None
+            self._token = None
             self.oauth = None
         else:
             resp.raise_for_status()
