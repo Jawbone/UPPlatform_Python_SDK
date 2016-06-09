@@ -4,8 +4,10 @@ Unit tests for upapi.__init__
 import httplib
 import mock
 import requests.exceptions
+import requests.utils
 import unittest
 import upapi
+import upapi.endpoints
 import upapi.scopes
 
 
@@ -24,6 +26,12 @@ class FakeResponse(object):
     """
 
     def __init__(self, status_code, raise_for_status=None):
+        """
+        Fakes requests.Response
+
+        :param status_code: HTTP status code of the response
+        :param raise_for_status: use this to mock the Response objects 40x/50x exception behavior
+        """
         self.status_code = status_code
         self.text = 'FakeResponse'
         if raise_for_status is not None:
@@ -76,7 +84,7 @@ class TestUpApi(unittest.TestCase):
         self.assertEqual(self.up.app_token_saver, app_token_saver)
         self.assertEqual(self.up._tokens, app_tokens)
 
-    @mock.patch('upapi.requests_oauthlib.OAuth2Session', autospec=True)
+    @mock.patch('upapi.requests_oauthlib.OAuth2Session')
     def test__refresh_oauth(self, mock_oauth):
         """
         Verify that the OAuth2Session's auto refresh is set correctly when instantiating a new oauth object.
@@ -92,6 +100,7 @@ class TestUpApi(unittest.TestCase):
             redirect_uri=upapi.redirect_uri,
             scope=upapi.scope,
             token=upapi.tokens)
+        self.assertTrue(self.up.oauth.headers['User-Agent'].startswith(upapi.USERAGENT))
 
         #
         # Token saver -> auto refresh
@@ -103,9 +112,10 @@ class TestUpApi(unittest.TestCase):
             redirect_uri=upapi.redirect_uri,
             scope=upapi.scope,
             token=upapi.tokens,
-            auto_refresh_url='https://jawbone.com/auth/oauth2/token',
+            auto_refresh_url=upapi.endpoints.TOKEN,
             auto_refresh_kwargs={'client_id': upapi.client_id, 'client_secret': upapi.client_secret},
             token_updater=upapi.token_saver)
+        self.assertTrue(self.up.oauth.headers['User-Agent'].startswith(upapi.USERAGENT))
 
     def test_redirect_uri(self):
         """
@@ -139,7 +149,7 @@ class TestUpApi(unittest.TestCase):
         mock_refresh.return_value = ret_tokens
         self.up.refresh_tokens()
         mock_refresh.assert_called_with(
-            'https://jawbone.com/auth/oauth2/token',
+            upapi.endpoints.TOKEN,
             client_id=upapi.client_id,
             client_secret=upapi.client_secret)
         self.assertEqual(self.up.tokens, ret_tokens)

@@ -8,6 +8,14 @@ import endpoints
 import httplib
 import requests_oauthlib
 
+
+"""
+Setting a specific User-Agent for analytics purposes.
+"""
+SDK_VERSION = '1.0'
+USERAGENT = 'uapi/%s (https://developer.jawbone.com)' % SDK_VERSION
+
+
 """
 Set these variables with the values for your app from https://jawbone.com/up/developer
 
@@ -143,6 +151,7 @@ class UpApi(object):
             redirect_uri=self._redirect_uri,
             token=self.tokens,
             **refresh_kwargs)
+        self.oauth.headers['User-Agent'] = '%s %s' % (USERAGENT, self.oauth.headers['User-Agent'])
 
     @property
     def redirect_uri(self):
