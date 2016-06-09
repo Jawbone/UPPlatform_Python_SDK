@@ -12,16 +12,19 @@ import requests_oauthlib
 """
 Setting a specific User-Agent for analytics purposes.
 """
-SDK_VERSION = '1.0'
-USERAGENT = 'uapi/%s (https://developer.jawbone.com)' % SDK_VERSION
+SDK_VERSION = '0.1'
+USERAGENT = 'upapi/%s (https://developer.jawbone.com)' % SDK_VERSION
 
 
 """
-Set these variables with the values for your app from https://jawbone.com/up/developer
+Set these variables with the values for your app from https://developer.jawbone.com
 
 If you have multiple redirect URLs, you can override this redirect_uri in your API calls.
 
 If you do not specify a token_saver, upapi will not automatically refresh expired tokens.
+
+If you specify a token, the SDK will use it to establish the OAuth connection. A token refresh or disconnect
+will automatically update this variable.
 """
 client_id = None
 client_secret = None
