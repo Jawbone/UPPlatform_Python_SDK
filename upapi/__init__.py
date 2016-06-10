@@ -4,9 +4,9 @@ This is the Python SDK for the Jawbone UP API.
 For API details: https://jawbone.com/up/developer
 For SDK details: https://github.com/Jawbone/UPPlatform_Python_SDK
 """
-import endpoints
 import httplib
 import requests_oauthlib
+import upapi.endpoints
 
 
 """

@@ -1,6 +1,6 @@
 """
 OAuth2 scope constants for the UP API
-Refer to https://nudgestage.jawbone.com/up/developer/authentication for a definition of these scopes.
+Refer to https://jawbone.com/up/developer/authentication for a definition of these scopes.
 """
 BASIC_READ = 'basic_read'
 EXTENDED_READ = 'extended_read'
