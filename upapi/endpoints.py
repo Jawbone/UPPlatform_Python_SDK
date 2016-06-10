@@ -3,15 +3,15 @@ This module holds all the UP API routes used in the SDK.
 https://jawbone.com/up/developer/endpoints
 """
 DOMAIN = 'https://jawbone.com'
-AUTH_PATH = '%s/auth/oauth2' % DOMAIN
+AUTH_PATH = '{}/auth/oauth2'.format(DOMAIN)
 
 """
 OAuth Endpoints
 """
-AUTH = '%s/auth' % AUTH_PATH
-TOKEN = '%s/token' % AUTH_PATH
+AUTH = '{}/auth'.format(AUTH_PATH)
+TOKEN = '{}/token'.format(AUTH_PATH)
 
 """
 Resource Endpoints
 """
-DISCONNECT = '%s/nudge/api/v.1.0/users/@me/PartnerAppMembership' % DOMAIN
+DISCONNECT = '{}/nudge/api/v.1.0/users/@me/PartnerAppMembership'.format(DOMAIN)

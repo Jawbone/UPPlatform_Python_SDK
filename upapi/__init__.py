@@ -13,7 +13,7 @@ import upapi.endpoints
 Setting a specific User-Agent for analytics purposes.
 """
 SDK_VERSION = '0.1'
-USERAGENT = 'upapi/%s (https://developer.jawbone.com)' % SDK_VERSION
+USERAGENT = 'upapi/{} (https://developer.jawbone.com)'.format(SDK_VERSION)
 
 
 """
@@ -160,7 +160,7 @@ class UpApi(object):
             redirect_uri=self._redirect_uri,
             token=self.token,
             **refresh_kwargs)
-        self.oauth.headers['User-Agent'] = '%s %s' % (USERAGENT, self.oauth.headers['User-Agent'])
+        self.oauth.headers['User-Agent'] = '{} {}'.format(USERAGENT, self.oauth.headers['User-Agent'])
 
     @property
     def redirect_uri(self):
@@ -236,7 +236,7 @@ class UpApi(object):
             # Raise an exception based on the HTTP response code
             #
             resp.raise_for_status()
-            raise UnexpectedAPIResponse('%s %s' % (resp.status_code, resp.text))
+            raise UnexpectedAPIResponse('{} {}'.format(resp.status_code, resp.text))
 
 
 class UnexpectedAPIResponse(Exception):
