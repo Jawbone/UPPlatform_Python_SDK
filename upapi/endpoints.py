@@ -1,5 +1,6 @@
 """
 This module holds all the UP API routes used in the SDK.
+https://jawbone.com/up/developer/endpoints
 """
 DOMAIN = 'https://jawbone.com'
 AUTH_PATH = '%s/auth/oauth2' % DOMAIN

@@ -36,7 +36,7 @@ token = None
 
 def get_redirect_url(override_url=None):
     """
-    Get the URL to redirect new users to allow your access to your application.
+    Get the URL to redirect new users to where they grant access to your application.
 
     :param override_url: override any globally set redirect_uri
     :return: your app-specific URL
@@ -50,7 +50,7 @@ def get_token(callback_url):
     """
     Retrieve the OAuth token from the server based on the authorization code in the callback_url.
 
-    :param callback_url: The URL on your server that Jawbone sent the user back to
+    :param callback_url: the URL on your server that Jawbone sent the user back to
     :return: a dictionary containing the token
     """
     global token
@@ -130,6 +130,9 @@ class UpApi(object):
         else:
             self._token = app_token
 
+        #
+        # All parameters are set. Initialize the OAuth object.
+        #
         self._refresh_oauth()
         super(UpApi, self).__init__()
 
@@ -143,6 +146,9 @@ class UpApi(object):
         if self.app_token_saver is None:
             refresh_kwargs = {}
         else:
+            #
+            # Required args to auto-refresh tokens
+            #
             refresh_kwargs = {
                 'auto_refresh_url': endpoints.TOKEN,
                 'auto_refresh_kwargs': {'client_id': self.app_id, 'client_secret': self.app_secret},
@@ -186,6 +192,11 @@ class UpApi(object):
 
     @token.setter
     def token(self, new_token):
+        """
+        Update the token and the oauth object.
+
+        :param new_token: new token value
+        """
         self._token = new_token
         self._refresh_oauth()
 
@@ -194,7 +205,7 @@ class UpApi(object):
         Retrieve a token after the user has logged in and approved your app (i.e., second half of the OAuth handshake).
 
         :param callback_url: The URL on your server that Jawbone sent the user back to
-        :return: the token dictionary from the UP API
+        :return: the token from the UP API
         """
         self._token = self.oauth.fetch_token(
             endpoints.TOKEN,
@@ -221,6 +232,9 @@ class UpApi(object):
             self._token = None
             self.oauth = None
         else:
+            #
+            # Raise an exception based on the HTTP response code
+            #
             resp.raise_for_status()
             raise UnexpectedAPIResponse('%s %s' % (resp.status_code, resp.text))
 

@@ -30,7 +30,7 @@ class FakeResponse(object):
         Fakes requests.Response
 
         :param status_code: HTTP status code of the response
-        :param raise_for_status: use this to mock the Response objects 40x/50x exception behavior
+        :param raise_for_status: use this to mock the Response object's 40x/50x exception behavior
         """
         self.status_code = status_code
         self.text = 'FakeResponse'
@@ -39,6 +39,9 @@ class FakeResponse(object):
 
 
 class TestUpApi(unittest.TestCase):
+    """
+    Unit tests for the UpApi object
+    """
     def setUp(self):
         """
         Create the UpApi object.
@@ -88,6 +91,7 @@ class TestUpApi(unittest.TestCase):
     def test__refresh_oauth(self, mock_oauth):
         """
         Verify that the OAuth2Session's auto refresh is set correctly when instantiating a new oauth object.
+        Additionally, check that the User-Agent is set correctly.
 
         :param mock_oauth: mocked OAuth2Session
         """
@@ -142,8 +146,7 @@ class TestUpApi(unittest.TestCase):
         """
         Verify the requests_oauthlib call to refresh the token and that it updates the UpApi object.
 
-        :param mock_refresh:
-        :return:
+        :param mock_refresh: mocked requests_oauthlib token refresh method
         """
         ret_token = {'access_token': 'refreshed_access'}
         mock_refresh.return_value = ret_token
@@ -158,8 +161,9 @@ class TestUpApi(unittest.TestCase):
     @mock.patch('upapi.requests_oauthlib.requests.Response.raise_for_status')
     def test_disconnect(self, mock_raise, mock_delete):
         """
-        Verify that a disconnect sets the token and oauth to None.
+        Verify that a disconnect sets the token and oauth to None, or raises the correct Exceptions.
 
+        :param mock_raise: mock OAuth lib Response function
         :param mock_delete: mock OAuth lib function
         """
         #
@@ -173,7 +177,7 @@ class TestUpApi(unittest.TestCase):
         # Non-200 and Non-40x/50x should raise from the SDK.
         #
         mock_raise.side_effect = None
-        mock_delete.return_value = FakeResponse(httplib.SEE_OTHER, raise_for_status=mock_raise)
+        mock_delete.return_value = FakeResponse(httplib.CREATED, raise_for_status=mock_raise)
         self.assertRaises(upapi.UnexpectedAPIResponse, self.up.disconnect)
 
         #
@@ -186,6 +190,9 @@ class TestUpApi(unittest.TestCase):
 
 
 class TestGetToken(unittest.TestCase):
+    """
+    Unit tests for upapi.get_token
+    """
     @mock.patch('upapi.requests_oauthlib.OAuth2Session.fetch_token', autospec=True)
     def test_get_token(self, mock_fetch_token):
         """
