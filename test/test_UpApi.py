@@ -229,6 +229,9 @@ class TestGetToken(unittest.TestCase):
 
 
 class TestRefreshToken(unittest.TestCase):
+    """
+    Unit tests for upapi.refresh_token
+    """
     @mock.patch('upapi.requests_oauthlib.OAuth2Session.refresh_token', autospec=True)
     def test_refresh_token(self, mock_refresh):
         """
@@ -243,6 +246,9 @@ class TestRefreshToken(unittest.TestCase):
 
 
 class TestDisconnect(unittest.TestCase):
+    """
+    Unit tests for upapi.disconnect
+    """
     @mock.patch('upapi.requests_oauthlib.OAuth2Session.delete', autospec=True)
     def test_disconnect(self, mock_delete):
         """
