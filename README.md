@@ -9,7 +9,7 @@ This SDK provides an object-oriented interface for working with the UP APIs. The
 ### Register your application
 Visit the [UP Developer Portal](https://jawbone.com/up/developer/) and click [Sign In](https://jawbone.com/up/developer/auth/login) to login with your UP account (or to create a new account).
 
-Once you have created your account, you can create a new application by clicking the **Create App** button on your [account page](https://jawbone.com/up/developer/account). Fill out the form with the specific details for your application. If you don't know what to put for the URLs, review the [Authentication documentation](https://jawbone.com/up/developer/authentication).
+Once you have signed in, you can create a new application by clicking the **Create App** button on your [account page](https://jawbone.com/up/developer/account). Fill out the form with the specific details for your application. If you don't know what to put for the URLs, review the [Authentication documentation](https://jawbone.com/up/developer/authentication).
 
 ### Install the SDK
 ***When active development stops, we will put this on pypi. For now, installation is a bit manual.***
@@ -34,11 +34,11 @@ upapi.token_saver = <token_saver>
 
 You can find your **Client Id** and **App Secret** in your Application Details (click on your app in the bottom left of the nav on the UP Developer Portal).
 
-**OAuth redirect URL** must be one of the URLs you specified when creating your application. If you have multiple URLs, you do not need to set this parameter and instead specify a URL when calling ```get_redirect_url```
+**OAuth redirect URL** must be one of the URLs you specified when creating your application. If you have multiple URLs, you do not need to set this parameter; instead, specify a URL when calling ```get_redirect_url```
 
 The ```upapi.scopes``` module provides a list of all the avaialable scopes. You can find scope definitions in the [UP API Authentication documentation](https://jawbone.com/up/developer/authentication).
 
-The SDK can automatically refresh any expired access tokens. To do so, you must provide a **token_saver** function, which the SDK call with the value of the new token. For more details, refer to the [Requests-OAuthlib documentation](http://requests-oauthlib.readthedocs.io/en/latest/oauth2_workflow.html#third-recommended-define-automatic-token-refresh-and-update).
+The SDK can automatically refresh any expired access tokens. To do so, you must provide a **token_saver** function, which the SDK will call with the value of the new token. For more details, refer to the [Requests-OAuthlib documentation](http://requests-oauthlib.readthedocs.io/en/latest/oauth2_workflow.html#third-recommended-define-automatic-token-refresh-and-update).
 
 ## Authentication
 The UP API uses OAuth2 to grant access to user data. For details, please read the [Authentication documentation](https://jawbone.com/up/developer/authentication).
@@ -75,7 +75,7 @@ upapi.token = <token>
 Note: if this is the same session in which you authenticated this user, the SDK will automatically set the value of ```upapi.token``` when you call ```upapi.get_token```.
 
 #### Refreshing Tokens
-The UP API OAuth2 tokens will expire after one year, so you will need to refresh them.
+The UP API OAuth2 tokens will expire after one year, so you will need to refresh them. The easiest way to do this is to set ```upapi.token_saver```. Then, the SDK will automatically refresh expired tokens. However, you can always manually refresh a token.
 ```python
 upapi.refresh_token()
 ```
@@ -84,12 +84,12 @@ This will use the existing value of ```upapi.token``` to get a new token and the
 #### Disconnecting Users
 In certain instances, you will need to disconnect a user from your application and the UP API. The [Disconnection documentation](https://jawbone.com/up/developer/disconnection) provides details on when and how this can happen.
 ```python
-upapi.disconnect
+upapi.disconnect()
 ```
 This will use the existing value of ```upapi.token``` to send a disconnection request to the API and then clear the value of ```upapi.token```.
 
 ## UpApi
-The SDK creates ```UpApi``` objects to manage the OAuth connection and issue all requests to the UP API. By default, an ```UpApi``` object initializes itself with the global values you have already set in the ```upapi``` module. However, if you want to manage the OAuth connect yourself, you can create your own ```UpApi``` objects.
+The SDK creates ```UpApi``` objects to manage the OAuth connection and issue all requests to the UP API. By default, an ```UpApi``` object initializes itself with the global values you have already set in the ```upapi``` module. However, if you want to manage the OAuth connection yourself, you can create your own ```UpApi``` objects.
 ```python
 up = upapi.UpApi(
   app_id = <Client Id>
@@ -105,7 +105,7 @@ For more details, read the documentation in the code.
 ## What's next?
 The next steps for the SDK will be to add objects to represent each of the [resources in the UP API](https://jawbone.com/up/developer/endpoints).
 
-For now, if you would like to use the SDK, you can establish the OAuth connection according to the instructions above. Then, you can issue requests through the UpApi object's ```oauth``` attribute, which is an instance of ```requests_oauthlib.OAuth2Session```.
+For now, if you would like to use the SDK, you can establish the OAuth connection according to the instructions above. Then, you can issue requests through the ```UpApi``` object's ```oauth``` attribute, which is an instance of ```requests_oauthlib.OAuth2Session```.
 ```python
 up = upapi.UpApi()
 resp = up.oauth.get('https://jawbone.com/nudge/api/v.1.1/users/@me')
