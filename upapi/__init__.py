@@ -245,6 +245,12 @@ class UpApi(object):
         if resp.status_code == httplib.OK:
             self._token = None
             self.oauth = None
+
+            #
+            # If there is a token_saver call it with None for the token.
+            #
+            if self.app_token_saver is not None:
+                self.app_token_saver(None)
         else:
             #
             # Raise an exception based on the HTTP response code

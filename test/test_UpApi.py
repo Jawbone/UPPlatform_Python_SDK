@@ -200,6 +200,19 @@ class TestUpApi(unittest.TestCase):
         """
         self._saver_test(self._refresh_test)
 
+    def _disconnect_test(self, up, mock_response, mock_delete):
+        """
+        Verifies the expected behavior of disconnect.
+        :param up: the UpApi object
+        :param mock_response: mock OAuth lib Response object
+        :param mock_delete: mock OAuth lib function
+        """
+        mock_response.status_code = httplib.OK
+        mock_delete.return_value = mock_response
+        up.disconnect()
+        self.assertIsNone(up._token)
+        self.assertIsNone(up.oauth)
+
     @mock.patch('upapi.requests_oauthlib.OAuth2Session.delete', autospec=True)
     @mock.patch('upapi.requests_oauthlib.requests.Response', autospec=True)
     @mock.patch('upapi.requests_oauthlib.requests.Response.raise_for_status')
@@ -230,14 +243,18 @@ class TestUpApi(unittest.TestCase):
         self.assertRaises(upapi.UnexpectedAPIResponse, self.up.disconnect)
 
         #
-        # Successful disconnect should clear the token
+        # Successful disconnect should clear the token, but no saver
         #
-        mock_response.status_code = httplib.OK
-        mock_delete.return_value = mock_response
-        self.up.disconnect()
-        self.assertIsNone(self.up._token)
-        self.assertIsNone(self.up.oauth)
+        mock_saver = mock.Mock(spec=['token'])
+        self._disconnect_test(self.up, mock_response, mock_delete)
+        mock_saver.assert_not_called()
 
+        #
+        # Saver set, clear the token and call it.
+        #
+        up = upapi.UpApi(app_token_saver=mock_saver)
+        self._disconnect_test(up, mock_response, mock_delete)
+        mock_saver.assert_called_once_with(None)
 
 class TestGetToken(unittest.TestCase):
     """
