@@ -211,6 +211,13 @@ class UpApi(object):
             endpoints.TOKEN,
             authorization_response=callback_url,
             client_secret=self.app_secret)
+
+        #
+        # New token, so call the token_saver if one is defined.
+        #
+        if self.app_token_saver is not None:
+            self.app_token_saver(self._token)
+
         return self._token
 
     def refresh_token(self):
@@ -221,6 +228,13 @@ class UpApi(object):
             endpoints.TOKEN,
             client_id=self.app_id,
             client_secret=self.app_secret)
+
+        #
+        # Token saver is set, so call it even on a manual refresh.
+        #
+        if self.app_token_saver is not None:
+            self.app_token_saver(self._token)
+
         return self._token
 
     def disconnect(self):
