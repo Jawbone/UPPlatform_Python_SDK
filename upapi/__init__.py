@@ -12,7 +12,7 @@ import upapi.endpoints
 """
 Setting a specific User-Agent for analytics purposes.
 """
-SDK_VERSION = '0.1'
+SDK_VERSION = '0.2'
 USERAGENT = 'upapi/{} (https://developer.jawbone.com)'.format(SDK_VERSION)
 
 
