@@ -130,28 +130,28 @@ class TestUpApi(unittest.TestCase):
         self.assertEqual(self.up.token, token)
         self.assertIsNot(self.up.oauth, default_oauth)
 
-    def _saver_test(self, test_func):
+    def _saver_test(self, test_func, test_args=None, saver_args=None):
         """
         Helper function to verify when and how a token saver should be called.
 
         :param test_func: function that tests other code execution thatconditionally calls token_saver
+        :param test_args: arguments to pass to test_func
+        :param saver_args: arguments to pass to the token saver
         """
         mock_saver = mock.Mock(spec=['token'])
 
         #
         # self.up does not have a token_saver
         #
-        ret_token = {'access_token': 'access_token'}
-        test_func(self.up, ret_token)
+        test_func(self.up, *test_args)
         mock_saver.assert_not_called()
 
         #
         # Now, test with a token_saver
         #
         up = upapi.UpApi(app_token_saver=mock_saver)
-        ret_token = {'access_token': 'access_token2'}
-        test_func(up, ret_token)
-        mock_saver.assert_called_once_with(ret_token)
+        test_func(up, *test_args)
+        mock_saver.assert_called_once_with(*saver_args)
 
     @mock.patch('upapi.requests_oauthlib.OAuth2Session.fetch_token')
     def _get_token_test(self, up, ret_token, mock_fetch):
@@ -175,7 +175,8 @@ class TestUpApi(unittest.TestCase):
         """
         Verify that getting a new token calls the token_saver if it's defined.
         """
-        self._saver_test(self._get_token_test)
+        token = {'access_token': 'access_token'}
+        self._saver_test(self._get_token_test, test_args=[token], saver_args=[token])
 
     @mock.patch('upapi.requests_oauthlib.OAuth2Session.refresh_token')
     def _refresh_test(self, up, ret_token, mock_refresh):
@@ -198,7 +199,8 @@ class TestUpApi(unittest.TestCase):
         """
         Verify the requests_oauthlib call to refresh the token and that it updates the UpApi object.
         """
-        self._saver_test(self._refresh_test)
+        token = {'access_token': 'access_token'}
+        self._saver_test(self._refresh_test, test_args=[token], saver_args=[token])
 
     def _disconnect_test(self, up, mock_response, mock_delete):
         """
@@ -224,37 +226,53 @@ class TestUpApi(unittest.TestCase):
         :param mock_response: mock OAuth lib Response object
         :param mock_delete: mock OAuth lib function
         """
-        mock_raise.side_effect = requests.exceptions.HTTPError
+        self._saver_test(self._disconnect_test, test_args=[mock_response, mock_delete], saver_args=[None])
+
+    @mock.patch('upapi.requests_oauthlib.requests.Response', autospec=True)
+    @mock.patch('upapi.requests_oauthlib.requests.Response.raise_for_status')
+    def test__raise_for_status(self, mock_raise, mock_response):
+        """
+        Verify that exceptions are raised for the proper response code.
+
+        :param mock_raise: mock OAuth lib Response function
+        :param mock_response: mock OAuth lib Response object
+        """
         mock_response.raise_for_status = mock_raise
 
         #
-        # 404 should raise from the library
+        # ok_statuses should not raise
+        #
+        mock_response.status_code = httplib.CREATED
+        try:
+            self.up._raise_for_status([httplib.OK, httplib.CREATED], mock_response)
+        except Exception as exc:
+            self.fail('_raise_for_status unexpectedly threw {}'.format(exc))
+        mock_raise.assert_not_called()
+
+        #
+        # 40x/50x should raise from requests_oauthlib
         #
         mock_response.status_code = httplib.NOT_FOUND
-        mock_delete.return_value = mock_response
-        self.assertRaises(requests.exceptions.HTTPError, self.up.disconnect)
+        mock_raise.side_effect = requests.exceptions.HTTPError
+        self.assertRaises(
+            mock_raise.side_effect,
+            self.up._raise_for_status,
+            [httplib.OK, httplib.CREATED],
+            mock_response)
 
         #
-        # Non-200 and Non-40x/50x should raise from the SDK.
+        # Anything else should raise from the SDK.
         #
+        mock_response.status_code = httplib.ACCEPTED
         mock_raise.side_effect = None
-        mock_response.status_code = httplib.CREATED
-        mock_delete.return_value = mock_response
-        self.assertRaises(upapi.UnexpectedAPIResponse, self.up.disconnect)
+        mock_raise.reset_mock()
+        self.assertRaises(
+            upapi.UnexpectedAPIResponse,
+            self.up._raise_for_status,
+            [httplib.OK, httplib.CREATED],
+            mock_response)
+        mock_raise.assert_called_with()
 
-        #
-        # Successful disconnect should clear the token, but no saver
-        #
-        mock_saver = mock.Mock(spec=['token'])
-        self._disconnect_test(self.up, mock_response, mock_delete)
-        mock_saver.assert_not_called()
-
-        #
-        # Saver set, clear the token and call it.
-        #
-        up = upapi.UpApi(app_token_saver=mock_saver)
-        self._disconnect_test(up, mock_response, mock_delete)
-        mock_saver.assert_called_once_with(None)
 
 class TestGetToken(unittest.TestCase):
     """
