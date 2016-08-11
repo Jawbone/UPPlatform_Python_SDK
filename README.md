@@ -38,7 +38,17 @@ You can find your **Client Id** and **App Secret** in your Application Details (
 
 The ```upapi.scopes``` module provides a list of all the avaialable scopes. You can find scope definitions in the [UP API Authentication documentation](https://jawbone.com/up/developer/authentication).
 
-The SDK can automatically refresh any expired access tokens. To do so, you must provide a **token_saver** function, which the SDK will call with the value of the new token. For more details, refer to the [Requests-OAuthlib documentation](http://requests-oauthlib.readthedocs.io/en/latest/oauth2_workflow.html#third-recommended-define-automatic-token-refresh-and-update).
+#### Token Saver
+If you specify a ```token_saver``` function, then the SDK will automatically call it whenever a token changes:
+- fetching a new token
+- refreshing an existing token
+- disconnecting a token
+
+Addtionally, when a ```token_saver``` exists, the SDK will automatically refresh an expired token.
+
+The ```token_saver``` function should take the token as its only argument. On disconnect, the token passed in will be ```None```.
+
+For more details, refer to the [Requests-OAuthlib documentation](http://requests-oauthlib.readthedocs.io/en/latest/oauth2_workflow.html#third-recommended-define-automatic-token-refresh-and-update).
 
 ## Authentication
 The UP API uses OAuth2 to grant access to user data. For details, please read the [Authentication documentation](https://jawbone.com/up/developer/authentication).
