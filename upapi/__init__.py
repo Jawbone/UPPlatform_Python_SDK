@@ -237,27 +237,56 @@ class UpApi(object):
 
         return self._token
 
+    def _raise_for_status(self, ok_statuses, resp):
+        """
+        Check the API response status and throw an exception if necessary.
+
+        :param ok_statuses: list of acceptable response codes
+        :param resp: the Response object
+        """
+        if resp.status_code not in ok_statuses:
+            resp.raise_for_status()
+            raise UnexpectedAPIResponse('{} {}'.format(resp.status_code, resp.text))
+
+    def delete(self, url):
+        """
+        Send a DELETE request to URL and handle bad responses.
+
+        :param url: endpoint to send the DELETE
+        :return: response object
+        """
+        resp = self.oauth.delete(url)
+        self._raise_for_status([httplib.OK], resp)
+        return resp
+
     def disconnect(self):
         """
         Revoke access for this user.
         """
-        resp = self.oauth.delete(endpoints.DISCONNECT)
-        if resp.status_code == httplib.OK:
-            self._token = None
-            self.oauth = None
+        self.delete(upapi.endpoints.DISCONNECT)
+        self._token = None
+        self.oauth = None
 
-            #
-            # If there is a token_saver call it with None for the token.
-            #
-            if self.app_token_saver is not None:
-                self.app_token_saver(None)
-        else:
-            #
-            # Raise an exception based on the HTTP response code
-            #
-            resp.raise_for_status()
-            raise UnexpectedAPIResponse('{} {}'.format(resp.status_code, resp.text))
+        #
+        # If there is a token_saver call it with None for the token.
+        #
+        if self.app_token_saver is not None:
+            self.app_token_saver(None)
 
+    def set_pubsub(self, url):
+        """
+        Register a user-specific pubsub webhook.
+
+        :param url: user-specific webhook callback URL
+        """
+        resp = self.oauth.post(upapi.endpoints.PUBSUB, data={'webhook': url})
+        self._raise_for_status([httplib.OK], resp)
+
+    def delete_pubsub(self):
+        """
+        Delete a user-specific pubsub webhook.
+        """
+        self.delete(upapi.endpoints.PUBSUB)
 
 class UnexpectedAPIResponse(Exception):
     """
