@@ -3,23 +3,27 @@ This is the Python SDK for the Jawbone UP API.
 
 For API details: https://jawbone.com/up/developer
 For SDK details: https://github.com/Jawbone/UPPlatform_Python_SDK
+
+When testing, if you are unable to use HTTPS, you will need to do one of the following:
+
+1. Set an environment variable.
+
+export OAUTHLIB_INSECURE_TRANSPORT=1
+
+2. Set the above in Python (somewhere before you import the SDK)
+
+import os
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 """
-import httplib
-import requests_oauthlib
 import upapi.endpoints
-
-
-"""
-Setting a specific User-Agent for analytics purposes.
-"""
-SDK_VERSION = '0.2'
-USERAGENT = 'upapi/{} (https://developer.jawbone.com)'.format(SDK_VERSION)
-
+import upapi.meta
+import upapi.base
+import upapi.user
 
 """
 Set these variables with the values for your app from https://developer.jawbone.com
 
-If you have multiple redirect URLs, you can override this redirect_uri in your API calls.
+If you have multiple redirect URLs, you can change this value as needed.
 
 If you do not specify a token_saver, upapi will not automatically refresh expired tokens.
 
@@ -34,15 +38,28 @@ token_saver = None
 token = None
 
 
-def get_redirect_url(override_url=None):
+def up():
+    """
+    Create an UpApi object with the global properties.
+
+    :return: upapi.base.UpApi object
+    """
+    return upapi.base.UpApi(
+        client_id,
+        client_secret,
+        app_redirect_uri=redirect_uri,
+        app_scope=scope,
+        app_token_saver=token_saver,
+        app_token=token)
+
+
+def get_redirect_url():
     """
     Get the URL to redirect new users to where they grant access to your application.
 
-    :param override_url: override any globally set redirect_uri
     :return: your app-specific URL
     """
-    authorization_url, state = UpApi(app_redirect_uri=override_url).oauth.authorization_url(
-        endpoints.AUTH)
+    authorization_url, state = up().oauth.authorization_url(upapi.endpoints.AUTH)
     return authorization_url
 
 
@@ -54,7 +71,7 @@ def get_token(callback_url):
     :return: a dictionary containing the token
     """
     global token
-    token = UpApi().get_up_token(callback_url)
+    token = up().get_up_token(callback_url)
     return token
 
 
@@ -65,231 +82,29 @@ def refresh_token():
     :return: the new token
     """
     global token
-    token = UpApi().refresh_token()
+    token = up().refresh_token()
     return token
+
+
+def get_user():
+    """
+    Create a User object with the global properties.
+
+    :return: upapi.user.User object
+    """
+    return upapi.user.User(
+        client_id,
+        client_secret,
+        app_redirect_uri=redirect_uri,
+        app_scope=scope,
+        app_token_saver=token_saver,
+        app_token=token)
 
 
 def disconnect():
     """
     Revoke the API access for this user.
     """
-    UpApi().disconnect()
+    up().disconnect()
     global token
     token = None
-
-
-class UpApi(object):
-    """
-    The UpApi manages the OAuth connection to the Jawbone UP API. All UP API resources are subclasses of UpApi.
-    """
-    def __init__(
-            self,
-            app_id=None,
-            app_secret=None,
-            app_redirect_uri=None,
-            app_scope=None,
-            app_token_saver=None,
-            app_token=None):
-        """
-        Create an UpApi object to manage the OAuth connection.
-
-        :param app_id: Client ID from UP developer portal
-        :param app_secret: App Secret from UP developer portal
-        :param app_redirect_uri: one of your OAuth redirect URLs
-        :param app_scope: list of permissions a user will have to approve
-        :param app_token_saver: method to call to save token on refresh
-        :param app_token: token from a previously OAuth'd user
-        """
-        self.oauth = None
-
-        #
-        # Use the module scope to default any unpassed args
-        #
-        if app_id is None:
-            self.app_id = client_id
-        else:
-            self.app_id = app_id
-        if app_secret is None:
-            self.app_secret = client_secret
-        else:
-            self.app_secret = app_secret
-        if app_redirect_uri is None:
-            self._redirect_uri = redirect_uri
-        else:
-            self._redirect_uri = app_redirect_uri
-        if app_scope is None:
-            self.app_scope = scope
-        else:
-            self.app_scope = app_scope
-        if app_token_saver is None:
-            self.app_token_saver = token_saver
-        else:
-            self.app_token_saver = app_token_saver
-        if app_token is None:
-            self._token = token
-        else:
-            self._token = app_token
-
-        #
-        # All parameters are set. Initialize the OAuth object.
-        #
-        self._refresh_oauth()
-        super(UpApi, self).__init__()
-
-    def _refresh_oauth(self):
-        """
-        Get a new OAuth object. This gets called automatically when you
-        1. create the object
-        2. update the user's token
-        3. update the redirect_uri
-        """
-        if self.app_token_saver is None:
-            refresh_kwargs = {}
-        else:
-            #
-            # Required args to auto-refresh tokens
-            #
-            refresh_kwargs = {
-                'auto_refresh_url': endpoints.TOKEN,
-                'auto_refresh_kwargs': {'client_id': self.app_id, 'client_secret': self.app_secret},
-                'token_updater': self.app_token_saver}
-
-        self.oauth = requests_oauthlib.OAuth2Session(
-            client_id=self.app_id,
-            scope=self.app_scope,
-            redirect_uri=self._redirect_uri,
-            token=self.token,
-            **refresh_kwargs)
-        self.oauth.headers['User-Agent'] = '{} {}'.format(USERAGENT, self.oauth.headers['User-Agent'])
-
-    @property
-    def redirect_uri(self):
-        """
-        An app can have multiple redirect_uris, so use this property to differentiate.
-
-        :return: the URI
-        """
-        return self._redirect_uri
-
-    @redirect_uri.setter
-    def redirect_uri(self, url):
-        """
-        Override the global redirect_uri and create a new oauth object.
-
-        :param url: the specific redirect_url for this connection
-        """
-        self._redirect_uri = url
-        self._refresh_oauth()
-
-    @property
-    def token(self):
-        """
-        The token from the OAuth handshake
-
-        :return: the token
-        """
-        return self._token
-
-    @token.setter
-    def token(self, new_token):
-        """
-        Update the token and the oauth object.
-
-        :param new_token: new token value
-        """
-        self._token = new_token
-        self._refresh_oauth()
-
-    def get_up_token(self, callback_url):
-        """
-        Retrieve a token after the user has logged in and approved your app (i.e., second half of the OAuth handshake).
-
-        :param callback_url: The URL on your server that Jawbone sent the user back to
-        :return: the token from the UP API
-        """
-        self._token = self.oauth.fetch_token(
-            endpoints.TOKEN,
-            authorization_response=callback_url,
-            client_secret=self.app_secret)
-
-        #
-        # New token, so call the token_saver if one is defined.
-        #
-        if self.app_token_saver is not None:
-            self.app_token_saver(self._token)
-
-        return self._token
-
-    def refresh_token(self):
-        """
-        Refresh the current OAuth token.
-        """
-        self._token = self.oauth.refresh_token(
-            endpoints.TOKEN,
-            client_id=self.app_id,
-            client_secret=self.app_secret)
-
-        #
-        # Token saver is set, so call it even on a manual refresh.
-        #
-        if self.app_token_saver is not None:
-            self.app_token_saver(self._token)
-
-        return self._token
-
-    def _raise_for_status(self, ok_statuses, resp):
-        """
-        Check the API response status and throw an exception if necessary.
-
-        :param ok_statuses: list of acceptable response codes
-        :param resp: the Response object
-        """
-        if resp.status_code not in ok_statuses:
-            resp.raise_for_status()
-            raise UnexpectedAPIResponse('{} {}'.format(resp.status_code, resp.text))
-
-    def delete(self, url):
-        """
-        Send a DELETE request to URL and handle bad responses.
-
-        :param url: endpoint to send the DELETE
-        :return: response object
-        """
-        resp = self.oauth.delete(url)
-        self._raise_for_status([httplib.OK], resp)
-        return resp
-
-    def disconnect(self):
-        """
-        Revoke access for this user.
-        """
-        self.delete(upapi.endpoints.DISCONNECT)
-        self._token = None
-        self.oauth = None
-
-        #
-        # If there is a token_saver call it with None for the token.
-        #
-        if self.app_token_saver is not None:
-            self.app_token_saver(None)
-
-    def set_pubsub(self, url):
-        """
-        Register a user-specific pubsub webhook.
-
-        :param url: user-specific webhook callback URL
-        """
-        resp = self.oauth.post(upapi.endpoints.PUBSUB, data={'webhook': url})
-        self._raise_for_status([httplib.OK], resp)
-
-    def delete_pubsub(self):
-        """
-        Delete a user-specific pubsub webhook.
-        """
-        self.delete(upapi.endpoints.PUBSUB)
-
-class UnexpectedAPIResponse(Exception):
-    """
-    UpApi raises this for API responses other than expected (according to the documentation)
-    """
-    pass

@@ -14,14 +14,9 @@ TOKEN = '{}/token'.format(AUTH_PATH)
 """
 Resource Endpoints
 """
-def user_path(version):
-    """
-    Generate a user resource path for the given API version
-
-    :param version: API version
-    :return: user resource path
-    """
-    return '/nudge/api/{}/users/@me'.format(version)
-
-DISCONNECT = '{}{}/PartnerAppMembership'.format(DOMAIN, user_path('v.1.0'))
-PUBSUB = '{}{}/pubsub'.format(DOMAIN, user_path('v.1.1'))
+VERSION = 'v.1.1'
+RESOURCE = '{}/nudge/api/{}'.format(DOMAIN, VERSION)
+USER = '{}/users/@me'.format(RESOURCE)
+FRIENDS = '{}/friends'.format(USER)
+PUBSUB = '{}/pubsub'.format(USER)
+DISCONNECT = '{}/PartnerAppMembership'.format(USER)
