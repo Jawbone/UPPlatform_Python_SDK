@@ -18,14 +18,13 @@ class UpApi(object):
     """
     The UpApi manages the OAuth connection to the Jawbone UP API. All UP API resources are subclasses of UpApi.
     """
-    def __init__(self, app_id, app_secret, app_redirect_uri=None, app_scope=None, app_token_saver=None, app_token=None):
+    def __init__(self, app_id, app_secret, app_redirect_uri, app_scope=None, app_token_saver=None, app_token=None):
         """
         Create an UpApi object to manage the OAuth connection.
 
         :param app_id: Client ID from UP developer portal
         :param app_secret: App Secret from UP developer portal
-        :param app_redirect_uri: one of your OAuth redirect URLs. If this is not provided, the object cannot auth a new
-            user.
+        :param app_redirect_uri: one of your OAuth redirect URLs
         :param app_scope: list of permissions a user will have to approve
         :param app_token_saver: method to call to save token on refresh. If this is not provied, the object will not
             automatically save tokens.

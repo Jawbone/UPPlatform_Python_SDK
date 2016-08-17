@@ -97,7 +97,7 @@ class TestUpApi(test.unit.TestResource):
         #
         # Now, test with a token_saver
         #
-        up = upapi.base.UpApi(self.app_id, self.app_secret, app_token_saver=self.mock_saver)
+        up = upapi.base.UpApi(self.app_id, self.app_secret, self.app_redirect_uri, app_token_saver=self.mock_saver)
         test_func(up, token)
         self.mock_saver.assert_called_once_with(token)
 
