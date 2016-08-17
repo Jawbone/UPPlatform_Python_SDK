@@ -1,6 +1,7 @@
 """
 Unit tests for upapi.base.UpApi
 """
+import datetime
 import httplib
 import mock
 import requests
@@ -208,7 +209,7 @@ class TestUpApi(test.unit.TestResource):
                 'user_xid': 'user_xid',
                 'message': 'message',
                 'code': 'code',
-                'time': 'time'},
+                'time': 1471463170},
             'data': 'data'}
         mock_json.return_value = resp_data
         mock_response.json = mock_json
@@ -223,7 +224,9 @@ class TestUpApi(test.unit.TestResource):
         self.assertEqual(self.up.meta.user_xid, resp_data['meta']['user_xid'])
         self.assertEqual(self.up.meta.message, resp_data['meta']['message'])
         self.assertEqual(self.up.meta.code, resp_data['meta']['code'])
-        self.assertEqual(self.up.meta.time, resp_data['meta']['time'])
+        self.assertEqual(
+            self.up.meta.time,
+            datetime.datetime.fromtimestamp(resp_data['meta']['time']))
 
         #
         # Verify the response data.

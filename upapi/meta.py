@@ -1,6 +1,7 @@
 """
 All API responses contain meta data particular to the API request.
 """
+import datetime
 
 
 class Meta(object):
@@ -19,4 +20,4 @@ class Meta(object):
         self.user_xid = user_xid
         self.message = message
         self.code = code
-        self.time = time
+        self.time = datetime.datetime.fromtimestamp(time)
