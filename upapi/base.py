@@ -10,7 +10,7 @@ import upapi.exceptions
 """
 Setting a specific User-Agent for analytics purposes.
 """
-SDK_VERSION = '0.2'
+SDK_VERSION = '0.3'
 USERAGENT = 'upapi/{} (https://developer.jawbone.com)'.format(SDK_VERSION)
 
 
