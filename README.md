@@ -20,6 +20,20 @@ Once you have signed in, you can create a new application by clicking the **Crea
 pip install -r upapi/requirements.txt
 ```
 
+### Testing with HTTP
+The UP APIs and this SDK require HTTPS urls for OAuth2, but most people do not have HTTPS set up in their local environments when developing applications. UP applications can have HTTP URLs as long as they are unpublished, and the SDK allows for HTTP as long as you set the ```OAUTHLIB_INSECURE_TRANSPORT``` environment variable. You can do this by doing one of the following:
+
+####Set the environment variable in your shell
+```bash
+export OAUTHLIB_INSECURE_TRANSPORT=1
+```
+
+####Set the environment variable in Python (somewhere before you import the SDK)
+```python
+import os
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+```
+
 ### Initialize the SDK
 ```python
 import upapi
@@ -34,9 +48,9 @@ upapi.token_saver = <token_saver>
 
 You can find your **Client Id** and **App Secret** in your Application Details (click on your app in the bottom left of the nav on the UP Developer Portal).
 
-**OAuth redirect URL** must be one of the URLs you specified when creating your application. If you have multiple URLs, you do not need to set this parameter; instead, specify a URL when calling ```get_redirect_url```
+**OAuth redirect URL** must be one of the URLs you specified when creating your application. If you have multiple URLs, you can change the value of ```upapi.redirect_uri``` as necessary.
 
-The ```upapi.scopes``` module provides a list of all the avaialable scopes. You can find scope definitions in the [UP API Authentication documentation](https://jawbone.com/up/developer/authentication).
+The [```upapi.scopes```](https://github.com/Jawbone/UPPlatform_Python_SDK/blob/master/upapi/scopes.py) module provides a list of all the available scopes. You can find scope definitions in the [UP API Authentication documentation](https://jawbone.com/up/developer/authentication).
 
 #### Token Saver
 If you specify a ```token_saver``` function, then the SDK will automatically call it whenever a token changes:
@@ -64,8 +78,6 @@ The SDK provides a helper function to generate an application-specific UP login 
 ```python
 url = upapi.get_redirect_url()
 ```
-
-If your application has multiple OAuth redirect URLs, then you can pass one of them as the ```override_url``` parameter of ```get_redirect_url```.
 
 #### Get the access token
 After the user grants access to your application, the UP API redirects the user back to the URL you specified with an **authorization_code**. You then need to exchange this code for an access token. Pass the entire URL to the ```get_token``` function to do this.
@@ -98,27 +110,52 @@ upapi.disconnect()
 ```
 This will use the existing value of ```upapi.token``` to send a disconnection request to the API and then clear the value of ```upapi.token```.
 
-## UpApi
-The SDK creates ```UpApi``` objects to manage the OAuth connection and issue all requests to the UP API. By default, an ```UpApi``` object initializes itself with the global values you have already set in the ```upapi``` module. However, if you want to manage the OAuth connection yourself, you can create your own ```UpApi``` objects.
+## User
+The SDK creates [```User```](https://github.com/Jawbone/UPPlatform_Python_SDK/blob/pdr-182/upapi/user/__init__.py) objects to represent the data available from the [User endpoint](https://jawbone.com/up/developer/endpoints/user). The easiest way to get the current user's object is to initialize the SDK and then run:
 ```python
-up = upapi.UpApi(
-  app_id = <Client Id>
-  app_secret = <App Secret>
-  app_redirect_uri = <OAuth redirect URL>
-  app_scope = [upapi.scopes.<Scope0>, upapi.scopes.<Scope1>,...]
-  app_token_saver = <token_saver>
-  app_token = <token>)
+user = upapi.get_user()
+```
+The ```data``` key of the User endpoint response gets converted from JSON into members of the newly created user object. The example response from the documentation would become:
+```python
+>>> user.xid
+u'6xl39CsoVp2KirfHwVq_Fx'
+>>> user.first
+u'James'
+>>> user.last
+u'Franklin'
 ```
 
-For more details, read the documentation in the code.
+Remember that the amount of user data available depends on the scope--```basic_read``` vs. ```extended_read```--the user granted access.
+
+### Friends
+You can retrieve a user's friends list by accessing the ```friends``` property of the user object. ```friends``` is an object that contains the ```size``` of the friends list and the list itself under ```items```. Each element of the ```items``` list is a [```Friend```](https://github.com/Jawbone/UPPlatform_Python_SDK/blob/pdr-182/upapi/user/friends.py) object.
+```python
+>>> friends = user.friends
+>>> friends.size
+2
+>>> friends.items[1].xid
+u'VkzWpOaqgeX'
+```
+## UpApi
+All the SDK objects that represent the API [Endpoints](https://jawbone.com/up/developer/endpoints) inherit from [```UpApi```](https://github.com/Jawbone/UPPlatform_Python_SDK/blob/master/upapi/__init__.py) objects to manage the OAuth connection and issue all requests to the UP API. If you want to manually manage the connections, requests, and objects, you can create ```UpApi``` (or any other) objects directly.
+
+### Meta
+All of the UP API endpoint responses contain a ```meta``` key that describes the response itself. All SDK objects convert this JSON to a [```Meta```](https://github.com/Jawbone/UPPlatform_Python_SDK/blob/pdr-182/upapi/meta.py) object. You can access the members of this object through the ```meta``` member. For example, here's how you would access ```meta``` data in a user object:
+```python
+>>> user.meta.user_xid
+u'6xl39CsoVp2KirfHwVq_Fx'
+
+>>> user.meta.code
+200
+```
 
 ## What's next?
-The next steps for the SDK will be to add objects to represent each of the [resources in the UP API](https://jawbone.com/up/developer/endpoints).
+The next steps for the SDK will be to add the remaining objects that represent each of the [resources in the UP API](https://jawbone.com/up/developer/endpoints).
 
 For now, if you would like to use the SDK, you can establish the OAuth connection according to the instructions above. Then, you can issue requests through the ```UpApi``` object's ```oauth``` attribute, which is an instance of ```requests_oauthlib.OAuth2Session```.
 ```python
 up = upapi.UpApi()
-resp = up.oauth.get('https://jawbone.com/nudge/api/v.1.1/users/@me')
+resp = up.oauth.get('https://jawbone.com/nudge/api/v.1.1/users/@me/workouts')
 resp.json()
 ```
 
