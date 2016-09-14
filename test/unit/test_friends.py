@@ -3,12 +3,14 @@ Unit tests for the Friends and Friend objects
 """
 import mock
 import test.unit
+import unittest
+import upapi.endpoints
 import upapi.user.friends
 
 
 class TestFriends(test.unit.TestResource):
     
-    @mock.patch('upapi.base.UpApi.get', autospec=True)
+    @mock.patch('upapi.user.friends.Friends.get', autospec=True)
     def test___init__(self, mock_get):
         """
         Verify Friends object creation.
@@ -25,7 +27,16 @@ class TestFriends(test.unit.TestResource):
             self.app_secret,
             app_redirect_uri=self.app_redirect_uri,
             app_scope=self.app_scope,
-            app_token=self.token)
+            user_token=self.token)
+        mock_get.assert_called_with(friends, upapi.endpoints.FRIENDS)
         for index, friend in enumerate(friends.items):
             self.assertEqual(friend.xid, friends_data['items'][index]['xid'])
         self.assertEqual(friends.size, friends_data['size'])
+
+
+class TestFriend(unittest.TestCase):
+
+    def test__init__(self):
+        data = {'xid': 'xid'}
+        test_friend = upapi.user.friends.Friend(data)
+        self.assertEqual(test_friend.xid, data['xid'])

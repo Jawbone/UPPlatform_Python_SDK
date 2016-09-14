@@ -25,15 +25,15 @@ Set these variables with the values for your app from https://developer.jawbone.
 
 If you have multiple redirect URLs, you can change this value as needed.
 
-If you do not specify a token_saver, upapi will not automatically refresh expired tokens.
-
-If you specify a token, the SDK will use it to establish the OAuth connection. A token refresh or disconnect
-will automatically update this variable.
+If you specify a credentials object or a token, the SDK will use it to establish the OAuth connection. Manually
+refreshing the token or disconnecting will automatically update these variables.
 """
 client_id = None
 client_secret = None
 redirect_uri = None
 scope = None
+credentials_saver = None
+credentials = None
 token_saver = None
 token = None
 
@@ -47,10 +47,12 @@ def up():
     return upapi.base.UpApi(
         client_id,
         client_secret,
-        app_redirect_uri=redirect_uri,
+        redirect_uri,
         app_scope=scope,
-        app_token_saver=token_saver,
-        app_token=token)
+        credentials_saver=credentials_saver,
+        user_credentials=credentials,
+        token_saver=token_saver,
+        user_token=token)
 
 
 def get_redirect_url():
@@ -59,8 +61,7 @@ def get_redirect_url():
 
     :return: your app-specific URL
     """
-    authorization_url, state = up().oauth.authorization_url(upapi.endpoints.AUTH)
-    return authorization_url
+    return up().get_redirect_url()
 
 
 def get_token(callback_url):
@@ -95,10 +96,12 @@ def get_user():
     return upapi.user.User(
         client_id,
         client_secret,
-        app_redirect_uri=redirect_uri,
+        redirect_uri,
         app_scope=scope,
-        app_token_saver=token_saver,
-        app_token=token)
+        credentials_saver=credentials_saver,
+        user_credentials=credentials,
+        token_saver=token_saver,
+        user_token=token)
 
 
 def disconnect():

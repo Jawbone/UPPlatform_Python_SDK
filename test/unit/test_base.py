@@ -3,8 +3,8 @@ Unit tests for upapi.base.UpApi
 """
 import datetime
 import httplib
+import json
 import mock
-import requests
 import test.unit
 import upapi.base
 import upapi.endpoints
@@ -14,224 +14,325 @@ import upapi.scopes
 
 
 class TestUpApi(test.unit.TestResource):
-
-    @mock.patch('upapi.base.requests_oauthlib.OAuth2Session')
-    def test__refresh_oauth(self, mock_oauth):
+    @mock.patch('datetime.datetime', autospec=True)
+    @mock.patch('oauth2client.client.OAuth2Credentials', autospec=True)
+    def test_token_to_creds(self, mock_creds, mock_dt):
         """
-        Verify that _refresh_oauth creates the session according to the parameters.
+        Verify that token_to_creds instantiates an OAuth2Credentials object with the correct parameters.
 
-        :param mock_oauth: mock session object
+        :param mock_creds: mocked OAuth2Credentials class
         """
         #
-        # No token saver -> no auto refresh
+        # Remove some precision from now() so that we don't fail due to the amount of time it takes to verify the test.
         #
-        upapi.base.UpApi(self.app_id, self.app_secret, app_redirect_uri=self.app_redirect_uri)
-        mock_oauth.assert_called_with(
-            client_id=self.app_id,
+        mock_dt.now = mock.Mock()
+        nowish = datetime.datetime.today()
+        nowish.replace(second=0, microsecond=0)
+        mock_dt.now.return_value = nowish
+
+        self.up.token_to_creds(self.token)
+        mock_creds.assert_called_with(
+            self.token['access_token'],
+            self.app_id,
+            self.app_secret,
+            self.token['refresh_token'],
+            nowish + datetime.timedelta(seconds=self.token['expires_in']),
+            upapi.endpoints.TOKEN,
+            upapi.base.USERAGENT,
+            token_response=self.token,
+            scopes=self.up.app_scope)
+
+    @mock.patch('oauth2client.client.OAuth2WebServerFlow', autospec=True)
+    def test__refresh_flow(self, mock_flow):
+        """
+        Verify creation of flow object.
+
+        :param mock_flow: mocked oauth object
+        """
+        upapi.base.UpApi(self.app_id, self.app_secret, self.app_redirect_uri)
+        mock_flow.assert_called_with(
+            self.app_id,
+            client_secret=self.app_secret,
+            scope=upapi.scopes.BASIC_READ,
             redirect_uri=self.app_redirect_uri,
-            scope=None,
-            token=None)
+            user_agent=upapi.base.USERAGENT,
+            auth_uri=upapi.endpoints.AUTH,
+            token_uri=upapi.endpoints.TOKEN)
+
+    @mock.patch('httplib2.Http', autospec=True)
+    def test__refresh_http(self, mock_http):
+        """
+        Verify that _refresh_http correctly creates the http object.
+
+        :param mock_http: mock httplib class
+        """
+        #
+        # No credentials, http is None
+        #
+        up = upapi.base.UpApi(self.app_id, self.app_secret, self.app_redirect_uri)
+        self.assertIsNone(up.http)
 
         #
-        # Token saver -> auto refresh
+        # Credentials, authorize http
+        #
+        upapi.base.UpApi(
+            self.app_id,
+            self.app_secret,
+            self.app_redirect_uri,
+            user_credentials=self.credentials)
+        mock_http.assert_called_with()
+        self.credentials.authorize.assert_called()
+
+    @mock.patch('upapi.base.UpApi.token_to_creds', autospec=True)
+    def test___init__(self, mock_t2c):
+        """
+        Verify that UpApi creation correctly handles credentials and tokens passed in and that scope is defaulted.
+        """
+        #
+        # Neither passed in, no call
+        #
+        upapi.base.UpApi(self.app_id, self.app_secret, self.app_redirect_uri)
+        self.assertFalse(mock_t2c.called)
+
+        #
+        # Both passed in, no call
+        # No scope, then default
         #
         up = upapi.base.UpApi(
             self.app_id,
             self.app_secret,
-            app_redirect_uri=self.app_redirect_uri,
-            app_token_saver=self.mock_saver)
-        mock_oauth.assert_called_with(
-            client_id=self.app_id,
-            redirect_uri=self.app_redirect_uri,
-            scope=None,
-            token=None,
-            auto_refresh_url=upapi.endpoints.TOKEN,
-            auto_refresh_kwargs={'client_id': self.app_id, 'client_secret': self.app_secret},
-            token_updater=self.mock_saver)
+            self.app_redirect_uri,
+            user_credentials=self.credentials,
+            user_token=self.token)
+        self.assertFalse(mock_t2c.called)
+        self.assertEqual(up.app_scope, upapi.scopes.BASIC_READ)
 
         #
-        # Check User-Agent
+        # Only token passed in, call
+        # Scope passed in, save it
         #
-        self.assertTrue(up.oauth.headers['User-Agent'].startswith(upapi.base.USERAGENT))
+        up = upapi.base.UpApi(
+            self.app_id,
+            self.app_secret,
+            self.app_redirect_uri,
+            app_scope=self.app_scope,
+            user_token=self.token)
+        mock_t2c.assert_called_with(up, self.token)
+        self.assertEqual(up.app_scope, self.app_scope)
 
-    def test_redirect_uri(self):
+    @mock.patch('upapi.base.UpApi._refresh_flow', autospec=True)
+    def test_redirect_uri(self, mock_refresh):
         """
         Verify overriding a redirect url refreshes OAuth.
         """
-        default_oauth = self.up.oauth
-
-        #
-        # Setting the redirect URI should refresh the oauth object.
-        #
         override_url = 'override_url'
         self.up.redirect_uri = override_url
         self.assertEqual(self.up.redirect_uri, override_url)
-        self.assertIsNot(self.up.oauth, default_oauth)
+        mock_refresh.assert_called_with(self.up)
 
-    def test_token(self):
+    @mock.patch('upapi.base.UpApi._refresh_http', autospec=True)
+    def test_credentials(self, mock_refresh):
         """
-        Verify that setting the token property refreshes the oatuh
+        Verify setting credentials refreshes OAuth.
         """
-        default_oauth = self.up.oauth
+        self.assertIsNone(self.up.credentials)
+        self.up.credentials = self.credentials
+        self.assertEqual(self.up.credentials, self.credentials)
+        mock_refresh.assert_called_with(self.up)
+
+    @mock.patch('oauth2client.client.OAuth2Credentials', autospec=True)
+    @mock.patch('upapi.base.UpApi.token_to_creds', autospec=True)
+    def test_token(self, mock_t2c, mock_creds):
+        """
+        Verify that setting the token sets the credentials and refreshes oauth.
+        """
+        #
+        # Mock token_to_creds returning mocked credentials whose token_response is the token.
+        #
+        mock_creds.token_response = self.token
+        mock_t2c.return_value = mock_creds
 
         #
-        # Setting the redirect URI should refresh the oauth object.
+        # Initially token is None, then setting it, should set creds, and the lookup will pull token_response.
         #
+        self.assertIsNone(self.up.token)
         self.up.token = self.token
+        mock_t2c.assert_called_with(self.up, self.token)
+        self.assertEqual(self.up.credentials, mock_creds)
         self.assertEqual(self.up.token, self.token)
-        self.assertIsNot(self.up.oauth, default_oauth)
 
-    def _saver_test(self, test_func, token=None):
+    def test_call_savers(self):
         """
-        Helper function to verify when and how a token saver should be called.
-
-        :param test_func: function that tests other code execution that conditionally calls token_saver
-        :param token: expected token to check
+        Verify that credential and token savers only get called if they exist.
         """
         #
-        # self.up does not have a token_saver
+        # No savers, no calls
         #
-        test_func(self.up, token)
-        self.mock_saver.assert_not_called()
+        self.up.call_savers()
+        self.assertFalse(self.mock_creds_saver.called)
+        self.assertFalse(self.mock_token_saver.called)
 
         #
-        # Now, test with a token_saver
+        # Cred saver only
         #
-        up = upapi.base.UpApi(self.app_id, self.app_secret, self.app_redirect_uri, app_token_saver=self.mock_saver)
-        test_func(up, token)
-        self.mock_saver.assert_called_once_with(token)
+        up = upapi.base.UpApi(
+            self.app_id,
+            self.app_secret,
+            self.app_redirect_uri,
+            credentials_saver=self.mock_creds_saver)
+        up.call_savers()
+        self.mock_creds_saver.assert_called_with(up.credentials)
+        self.assertFalse(self.mock_token_saver.called)
 
-    @mock.patch('upapi.base.requests_oauthlib.OAuth2Session.fetch_token')
-    def _get_token_test(self, up, ret_token, mock_fetch):
-        """
-        Helper function to verify the fetch_token call and the token returned.
+        #
+        # Token saver only
+        #
+        self.mock_creds_saver.reset_mock()
+        up = upapi.base.UpApi(
+            self.app_id,
+            self.app_secret,
+            self.app_redirect_uri,
+            token_saver=self.mock_token_saver)
+        up.call_savers()
+        self.assertFalse(self.mock_creds_saver.called)
+        self.mock_token_saver.assert_called_with(up.token)
 
-        :param up: the UpApi object
-        :param ret_token: expected token
-        :param mock_fetch: mocked requests_oauthlib fetch method
-        """
-        mock_fetch.return_value = ret_token
-        callback_url = 'https://callback.url'
-        token = up.get_up_token(callback_url)
-        mock_fetch.assert_called_with(
-            upapi.endpoints.TOKEN,
-            authorization_response=callback_url,
-            client_secret=up.app_secret)
-        self.assertEqual(token, ret_token)
+        #
+        # Both savers
+        #
+        up = upapi.base.UpApi(
+            self.app_id,
+            self.app_secret,
+            self.app_redirect_uri,
+            credentials_saver=self.mock_creds_saver,
+            token_saver=self.mock_token_saver)
+        up.call_savers()
+        self.mock_creds_saver.assert_called_with(up.credentials)
+        self.mock_token_saver.assert_called_with(up.token)
 
-    def test_get_up_token(self):
+    @mock.patch('oauth2client.client.OAuth2WebServerFlow.step2_exchange', autospec=True)
+    @mock.patch('upapi.base.UpApi.call_savers', autospec=True)
+    def test_get_up_token(self, mock_savers, mock_exchange):
         """
-        Verify that getting a new token calls the token_saver if it's defined.
-        """
-        self._saver_test(self._get_token_test)
+        Verify that getting a token from API sets the credentials and calls the savers.
 
-    @mock.patch('upapi.base.requests_oauthlib.OAuth2Session.refresh_token')
-    def _refresh_test(self, up, ret_token, mock_refresh):
+        :param mock_exchange: mocked flow call
         """
-        Helper function to verify the refresh call and the token returned.
+        mock_exchange.return_value = self.credentials
+        callback_url = 'http://127.0.0.1:8080/dummy?state=state&code=code'
+        self.up.get_up_token(callback_url)
+        mock_exchange.assert_called_with(self.up.flow, 'code')
+        self.assertEqual(self.up.credentials, self.credentials)
+        mock_savers.assert_called_with(self.up)
 
-        :param up: the UpApi object
-        :param ret_token: expected token
-        :param mock_refresh: mocked requests_oauthlib token refresh method
+    def _set_token_response(self, token):
         """
-        mock_refresh.return_value = ret_token
-        token = up.refresh_token()
-        mock_refresh.assert_called_with(
-            upapi.endpoints.TOKEN,
-            client_id=self.app_id,
-            client_secret=self.app_secret)
-        self.assertEqual(token, ret_token)
+        Helper function to create a mock side-effect when refreshing a token.
 
-    def test_refresh_token(self):
+        :param token: dict to use for the token_response
+        :return: token setter
         """
-        Verify the requests_oauthlib call to refresh the token and that it updates the UpApi object.
-        """
-        self._saver_test(self._refresh_test)
+        def setter(_):
+            """
+            Set the token.
+            """
+            self.upcreds.credentials.token_response = token
 
-    @mock.patch('upapi.base.requests_oauthlib.requests.Response', autospec=True)
-    @mock.patch('upapi.base.requests_oauthlib.requests.Response.raise_for_status')
-    def test__raise_for_status(self, mock_raise, mock_response):
-        """
-        Verify that exceptions are raised for the proper response code.
+        return setter
 
-        :param mock_raise: mock OAuth lib Response function
-        :param mock_response: mock OAuth lib Response object
+    @mock.patch('oauth2client.client.OAuth2Credentials.refresh')
+    @mock.patch('upapi.base.UpApi.call_savers', autospec=True)
+    def test_refresh_token(self, mock_savers, mock_refresh):
         """
-        mock_response.raise_for_status = mock_raise
+        Verify that refreshing the token updates the credentials and calls the savers.
 
+        :param mock_savers: mocked token saver call
+        :param mock_refresh: mocked token refresh call
+        """
+        #
+        # Going to test the update to credentials.token_response, so set that and make it the mocked refresh
+        # side-effect.
+        #
+        self.credentials.token_response = self.token
+        new_token = {
+            'access_token': 'new_access_token',
+            "token_type": "Bearer",
+            "expires_in": 31536000,
+            "refresh_token": "refresh_token"}
+        mock_refresh.side_effect = self._set_token_response(new_token)
+        self.credentials.refresh = mock_refresh
+
+        #
+        # Now refresh.
+        #
+        self.upcreds.refresh_token()
+        mock_refresh.assert_called_with(self.upcreds.http)
+        self.assertEqual(self.upcreds.credentials.token_response, new_token)
+        mock_savers.assert_called_with(self.upcreds)
+
+    @mock.patch('httplib2.Response', autospec=True)
+    def test__raise_for_status(self, mock_resp):
+        """
+        Verify that an exceptions gets raised for unexpected responses.
+
+        :param mock_resp: mocked httplib Response
+        """
         #
         # ok_statuses should not raise
         #
-        mock_response.status_code = httplib.CREATED
-        self.up.response = mock_response
+        mock_resp.status = httplib.CREATED
+        self.up.resp = mock_resp
+        self.up.content = ''
         try:
             self.up._raise_for_status([httplib.OK, httplib.CREATED])
         except Exception as exc:
             self.fail('_raise_for_status unexpectedly threw {}'.format(exc))
-        mock_raise.assert_not_called()
 
         #
-        # 40x/50x should raise from requests_oauthlib
+        # Anything else should raise.
         #
-        mock_response.status_code = httplib.NOT_FOUND
-        mock_raise.side_effect = requests.exceptions.HTTPError
-        self.assertRaises(
-            mock_raise.side_effect,
-            self.up._raise_for_status,
-            [httplib.OK, httplib.CREATED])
-
-        #
-        # Anything else should raise from the SDK.
-        #
-        mock_response.status_code = httplib.ACCEPTED
-        mock_raise.side_effect = None
-        mock_raise.reset_mock()
+        mock_resp.status = httplib.ACCEPTED
         self.assertRaises(
             upapi.exceptions.UnexpectedAPIResponse,
             self.up._raise_for_status,
             [httplib.OK, httplib.CREATED])
-        mock_raise.assert_called_with()
 
-    @mock.patch('upapi.base.requests_oauthlib.requests.Response.json')
-    @mock.patch('upapi.base.requests_oauthlib.requests.Response', autospec=True)
-    @mock.patch('upapi.base.requests_oauthlib.OAuth2Session.get')
-    def test__request(self, mock_get, mock_response, mock_json):
+    @mock.patch('httplib2.Http.request', autospec=True)
+    @mock.patch('httplib2.Response', autospec=True)
+    def test__request(self, mock_resp, mock_request):
         """
         Verify that _request sets up the meta object correctly and returns the response data.
 
-        :param mock_get: mocked OAuth get call
-        :param mock_response: mocked response object
-        :param mock_json: mocked json conversion methdo
-        :return:
+        :param mock_resp: mocked Response object
+        :param mock_request: mocked Http.request method
         """
-        resp_data = {
+        mock_resp.status = httplib.OK
+        resp_content = {
             'meta': {
                 'user_xid': 'user_xid',
                 'message': 'message',
                 'code': 'code',
                 'time': 1471463170},
             'data': 'data'}
-        mock_json.return_value = resp_data
-        mock_response.json = mock_json
-        mock_response.status_code = httplib.OK
-        mock_get.return_value = mock_response
+        mock_request.return_value = (mock_resp, json.dumps(resp_content))
+        self.upcreds.http.request = mock_request
         resource = 'https://up.resource'
-        data = self.up._request(mock_get, resource)
+        data = self.upcreds._request(resource)
 
         #
         # Verify meta object created successfully.
         #
-        self.assertEqual(self.up.meta.user_xid, resp_data['meta']['user_xid'])
-        self.assertEqual(self.up.meta.message, resp_data['meta']['message'])
-        self.assertEqual(self.up.meta.code, resp_data['meta']['code'])
+        self.assertEqual(self.upcreds.meta.user_xid, resp_content['meta']['user_xid'])
+        self.assertEqual(self.upcreds.meta.message, resp_content['meta']['message'])
+        self.assertEqual(self.upcreds.meta.code, resp_content['meta']['code'])
         self.assertEqual(
-            self.up.meta.time,
-            datetime.datetime.fromtimestamp(resp_data['meta']['time']))
+            self.upcreds.meta.time,
+            datetime.datetime.fromtimestamp(resp_content['meta']['time']))
 
         #
         # Verify the response data.
         #
-        self.assertEqual(data, resp_data['data'])
+        self.assertEqual(data, resp_content['data'])
 
     @mock.patch('upapi.base.UpApi._request', autospec=True)
     def test_get(self, mock_request):
@@ -242,7 +343,7 @@ class TestUpApi(test.unit.TestResource):
         """
         resource = 'https://up.resource'
         self.up.get(resource)
-        mock_request.assert_called_with(self.up, self.up.oauth.get, resource)
+        mock_request.assert_called_with(self.up, resource)
 
     @mock.patch('upapi.base.UpApi._request', autospec=True)
     def test_delete(self, mock_request):
@@ -253,25 +354,15 @@ class TestUpApi(test.unit.TestResource):
         """
         resource = 'https://up.resource'
         self.up.delete(resource)
-        mock_request.assert_called_with(self.up, self.up.oauth.delete, resource)
+        mock_request.assert_called_with(self.up, resource, method='DELETE')
 
     @mock.patch('upapi.base.UpApi.delete', autospec=True)
-    def _disconnect_test(self, up, token, mock_delete):
+    @mock.patch('upapi.base.UpApi.call_savers', autospec=True)
+    def test_disconnect(self, mock_savers, mock_delete):
         """
-        Verifies the expected behavior of disconnect.
-
-        :param up: the UpApi object
-        :param token: dummy parameter so we can use _saver_test
-        :param mock_delete: mock UpApi function
+        Verify that a disconnect calls the API, refreshes, and calls the savers.
         """
-        up.disconnect()
-        mock_delete.assert_called_with(up, upapi.endpoints.DISCONNECT)
-        self.assertEqual(up._token, token)
-        self.assertIsNone(up._token)
-        self.assertIsNone(up.oauth)
-
-    def test_disconnect(self):
-        """
-        Verify that a disconnect sets the token and oauth to None, or raises the correct Exceptions.
-        """
-        self._saver_test(self._disconnect_test)
+        self.upcreds.disconnect()
+        mock_delete.assert_called_with(self.upcreds, upapi.endpoints.DISCONNECT)
+        self.assertIsNone(self.upcreds.credentials)
+        mock_savers.assert_called_with(self.upcreds)

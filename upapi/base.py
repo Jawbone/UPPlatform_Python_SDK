@@ -1,16 +1,21 @@
 """
 All the API objects inherit from UpApi.
 """
+import datetime
 import httplib
-import requests_oauthlib
+import httplib2
+import json
+import oauth2client.client
 import upapi.endpoints
 import upapi.exceptions
+import upapi.scopes
+import urlparse
 
 
 """
 Setting a specific User-Agent for analytics purposes.
 """
-SDK_VERSION = '0.3'
+SDK_VERSION = '0.4'
 USERAGENT = 'upapi/{} (https://developer.jawbone.com)'.format(SDK_VERSION)
 
 
@@ -18,59 +23,107 @@ class UpApi(object):
     """
     The UpApi manages the OAuth connection to the Jawbone UP API. All UP API resources are subclasses of UpApi.
     """
-    def __init__(self, app_id, app_secret, app_redirect_uri, app_scope=None, app_token_saver=None, app_token=None):
+    def __init__(
+            self,
+            app_id,
+            app_secret,
+            app_redirect_uri,
+            app_scope=None,
+            credentials_saver=None,
+            user_credentials=None,
+            token_saver=None,
+            user_token=None):
         """
         Create an UpApi object to manage the OAuth connection.
 
         :param app_id: Client ID from UP developer portal
         :param app_secret: App Secret from UP developer portal
         :param app_redirect_uri: one of your OAuth redirect URLs
-        :param app_scope: list of permissions a user will have to approve
-        :param app_token_saver: method to call to save token on refresh. If this is not provied, the object will not
-            automatically save tokens.
-        :param app_token: token from a previously OAuth'd user. If this is not provided, the object must first auth a
-            new user.
+        :param app_scope: list of permissions a user will have to approve (see upapi.scopes). Defaults to
+            upapi.scopes.BASIC_READ
+        :param credentials_saver: function to call to save a user's credentials when they get updated. This function
+            should take an oauth2client.client.OAuth2Credentials object.
+        :param user_credentials: oauth2client.client.OAuth2Credentials object from a previously OAuth'd user. This will
+            override any value passed in for user_token. If neither user_token or user_credentials are passed in, then
+            the app must send the user through the OAuth flow and call the get_up_token method to retrieve the token
+            and credentials.
+        :param token_saver: function to call to save a user's token dict when it gets updated. This function should take
+            a single argument, the dict returned from the UP API.
+        :param user_token: the dict containing access and refresh tokens returned from the UP API. This will only be
+            used if you do not pass in user_credentials.
         """
         self.app_id = app_id
         self.app_secret = app_secret
         self._redirect_uri = app_redirect_uri
-        self.app_scope = app_scope
-        self.app_token_saver = app_token_saver
-        self._token = app_token
 
         #
-        # Initialize the OAuth object.
+        # Default scope to BASIC_READ. The API itself will do this, but the OAuth2Client library complains if scope is
+        # None.
         #
-        self.oauth = None
-        self._refresh_oauth()
+        if app_scope is None:
+            self.app_scope = upapi.scopes.BASIC_READ
+        else:
+            self.app_scope = app_scope
+
+        self.credentials_saver = credentials_saver
+        self._credentials = user_credentials
+        self.token_saver = token_saver
+
+        #
+        # Make sure token and credentials match
+        #
+        if (self._credentials is None) and (user_token is not None):
+            self._credentials = self.token_to_creds(user_token)
+
+        #
+        # Initialize the OAuth objects.
+        #
+        self.flow = None
+        self._refresh_flow()
+        self.http = None
+        self._refresh_http()
 
         super(UpApi, self).__init__()
 
-    def _refresh_oauth(self):
+    def token_to_creds(self, token):
         """
-        Get a new OAuth object. This gets called automatically when you
-        1. create the object
-        2. update the user's token
-        3. update the redirect_uri
-        """
-        if self.app_token_saver is None:
-            refresh_kwargs = {}
-        else:
-            #
-            # Required args to auto-refresh tokens
-            #
-            refresh_kwargs = {
-                'auto_refresh_url': upapi.endpoints.TOKEN,
-                'auto_refresh_kwargs': {'client_id': self.app_id, 'client_secret': self.app_secret},
-                'token_updater': self.app_token_saver}
+        Convert a token dictionary to an oauth2client.client.OAuth2Credentials object.
 
-        self.oauth = requests_oauthlib.OAuth2Session(
-            client_id=self.app_id,
+        :param token: the token dict returned from the UP API
+        :return: the OAuth2Credentials object
+        """
+        return oauth2client.client.OAuth2Credentials(
+            token['access_token'],
+            self.app_id,
+            self.app_secret,
+            token['refresh_token'],
+            datetime.datetime.now() + datetime.timedelta(seconds=token['expires_in']),
+            upapi.endpoints.TOKEN,
+            USERAGENT,
+            token_response=token,
+            scopes=self.app_scope)
+
+    def _refresh_flow(self):
+        """
+        Get a new flow object--called automatically when creating the object or updating the redirect URI.
+        """
+        self.flow = oauth2client.client.OAuth2WebServerFlow(
+            self.app_id,
+            client_secret=self.app_secret,
             scope=self.app_scope,
-            redirect_uri=self._redirect_uri,
-            token=self.token,
-            **refresh_kwargs)
-        self.oauth.headers['User-Agent'] = '{} {}'.format(USERAGENT, self.oauth.headers['User-Agent'])
+            redirect_uri=self.redirect_uri,
+            user_agent=USERAGENT,
+            auth_uri=upapi.endpoints.AUTH,
+            token_uri=upapi.endpoints.TOKEN)
+
+    def _refresh_http(self):
+        """
+        Get new http object--called automatically when creating the object or updating the credentials/token.
+        """
+        if self.credentials is None:
+            self.http = None
+        else:
+            self.http = self.credentials.authorize(httplib2.Http())
 
     @property
     def redirect_uri(self):
@@ -89,7 +142,26 @@ class UpApi(object):
         :param url: the specific redirect_url for this connection
         """
         self._redirect_uri = url
-        self._refresh_oauth()
+        self._refresh_flow()
+
+    @property
+    def credentials(self):
+        """
+        The OAuth2Credentials object from a successful OAuth flow
+
+        :return: the OAuth2Credentials object
+        """
+        return self._credentials
+
+    @credentials.setter
+    def credentials(self, new_creds):
+        """
+        Update the credentials and refresh the oauth objects.
+
+        :param new_creds: new OAuth2Credentials object
+        """
+        self._credentials = new_creds
+        self._refresh_http()
 
     @property
     def token(self):
@@ -98,7 +170,10 @@ class UpApi(object):
 
         :return: the token
         """
-        return self._token
+        if self._credentials is None:
+            return None
+        else:
+            return self._credentials.token_response
 
     @token.setter
     def token(self, new_token):
@@ -107,45 +182,45 @@ class UpApi(object):
 
         :param new_token: new token value
         """
-        self._token = new_token
-        self._refresh_oauth()
+        self.credentials = self.token_to_creds(new_token)
+
+    def get_redirect_url(self):
+        """
+        Get the OAuth login redirect URL for this app.
+
+        :return: the OAuth login redirect URL
+        """
+        return self.flow.step1_get_authorize_url()
+
+    def call_savers(self):
+        """
+        If credential or token savers exist, call them.
+        """
+        if self.credentials_saver is not None:
+            self.credentials_saver(self.credentials)
+        if self.token_saver is not None:
+            self.token_saver(self.token)
 
     def get_up_token(self, callback_url):
         """
         Retrieve a token after the user has logged in and approved your app (i.e., second half of the OAuth handshake).
+        Set the token in the object, and call the savers.
 
         :param callback_url: The full URL on your server that Jawbone sent the user back to
-        :return: the token from the UP API
         """
-        self._token = self.oauth.fetch_token(
-            upapi.endpoints.TOKEN,
-            authorization_response=callback_url,
-            client_secret=self.app_secret)
-
         #
-        # New token, so call the token_saver if one is defined.
+        # Parse the code parameter out of the URL.
         #
-        if self.app_token_saver is not None:
-            self.app_token_saver(self._token)
-
-        return self._token
+        code = urlparse.parse_qs(urlparse.urlparse(callback_url).query)['code'][0]
+        self.credentials = self.flow.step2_exchange(code)
+        self.call_savers()
 
     def refresh_token(self):
         """
         Refresh the current OAuth token.
         """
-        self._token = self.oauth.refresh_token(
-            upapi.endpoints.TOKEN,
-            client_id=self.app_id,
-            client_secret=self.app_secret)
-
-        #
-        # Token saver is set, so call it even on a manual refresh.
-        #
-        if self.app_token_saver is not None:
-            self.app_token_saver(self._token)
-
-        return self._token
+        self.credentials.refresh(self.http)
+        self.call_savers()
 
     def _raise_for_status(self, ok_statuses):
         """
@@ -153,22 +228,21 @@ class UpApi(object):
 
         :param ok_statuses: list of acceptable response codes
         """
-        if self.response.status_code not in ok_statuses:
-            self.response.raise_for_status()
-            raise upapi.exceptions.UnexpectedAPIResponse('{} {}'.format(self.response.status_code, self.response.text))
+        if self.resp.status not in ok_statuses:
+            raise upapi.exceptions.UnexpectedAPIResponse('{} {}'.format(self.resp.status, self.content))
 
-    def _request(self, method, url):
+    def _request(self, url, method='GET'):
         """
-        Issue an HTTP request using the OAuth token, handle bad responses, set the Meta object for the request, and
-        return the data as JSON.
+        Issue an HTTP request using the authorized Http object, handle bad responses, set the Meta object from the
+        response content, and return the data as JSON.
 
-        :param method: HTTP method (e.g. self.oauth.get)
         :param url: endpoint to send the request
+        :param method: HTTP method (e.g. GET, POST, etc.), defaults to GET
         :return: JSON data
         """
-        self.response = method(url)
+        self.resp, self.content = self.http.request(url, method)
         self._raise_for_status([httplib.OK])
-        resp_json = self.response.json()
+        resp_json = json.loads(self.content)
         self.meta = upapi.meta.Meta(**resp_json['meta'])
         return resp_json['data']
 
@@ -179,7 +253,7 @@ class UpApi(object):
         :param url: endpoint to send the GET
         :return: JSON data
         """
-        return self._request(self.oauth.get, url)
+        return self._request(url)
 
     def delete(self, url):
         """
@@ -188,21 +262,15 @@ class UpApi(object):
         :param url: endpoint to send the DELETE
         :return: JSON data
         """
-        return self._request(self.oauth.delete, url)
+        return self._request(url, method='DELETE')
 
     def disconnect(self):
         """
         Revoke access for this user.
         """
         self.delete(upapi.endpoints.DISCONNECT)
-        self._token = None
-        self.oauth = None
-
-        #
-        # If there is a token_saver call it with None for the token.
-        #
-        if self.app_token_saver is not None:
-            self.app_token_saver(None)
+        self.credentials = None
+        self.call_savers()
 
     #
     # TODO: finish pubsub implementation.
