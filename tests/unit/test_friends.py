@@ -2,13 +2,13 @@
 Unit tests for the Friends and Friend objects
 """
 import mock
-import test.unit
+import tests.unit
 import unittest
 import upapi.endpoints
 import upapi.user.friends
 
 
-class TestFriends(test.unit.TestResource):
+class TestFriends(tests.unit.TestResource):
     
     @mock.patch('upapi.user.friends.Friends.get', autospec=True)
     def test___init__(self, mock_get):

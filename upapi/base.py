@@ -214,13 +214,20 @@ class UpApi(object):
         code = urlparse.parse_qs(urlparse.urlparse(callback_url).query)['code'][0]
         self.credentials = self.flow.step2_exchange(code)
         self.call_savers()
+        return self.token
 
     def refresh_token(self):
         """
         Refresh the current OAuth token.
         """
-        self.credentials.refresh(self.http)
+        #
+        # Need a fresh Http object because we cannot pass the existing access token to the refresh endpoint, and then
+        # we need to refresh the Http object with the new credentials.
+        #
+        self.credentials.refresh(httplib2.Http())
+        self._refresh_http()
         self.call_savers()
+        return self.token
 
     def _raise_for_status(self, ok_statuses):
         """

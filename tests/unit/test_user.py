@@ -2,12 +2,12 @@
 Unit tests for the User object
 """
 import mock
-import test.unit
+import tests.unit
 import upapi.endpoints
 import upapi.user
 
 
-class TestUser(test.unit.TestResource):
+class TestUser(tests.unit.TestResource):
 
     @mock.patch('upapi.user.User.get', autospec=True)
     def test___init__(self, mock_get):
@@ -40,5 +40,6 @@ class TestUser(test.unit.TestResource):
             self.app_secret,
             app_redirect_uri=self.app_redirect_uri,
             user_token=self.token)
+        self.assertTrue(mock_get.called)
         user.friends
         mock_friends.assert_called_with(*user.args, **user.kwargs)

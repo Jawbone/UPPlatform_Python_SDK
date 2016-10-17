@@ -17,13 +17,14 @@ class TestResource(unittest.TestCase):
         self.app_secret = 'app_secret'
         self.app_redirect_uri = 'app_redirect_uri'
         self.app_scope = [upapi.scopes.MOVE_READ, upapi.scopes.SLEEP_READ]
-        self.credentials = mock.Mock(spec='oauth2client.client.OAuth2Credentials')
-        self.credentials.authorize = mock.Mock(spec_set='oauth2client.client.OAuth2Credentials.authorize')
         self.token = {
             "access_token": "access_token",
             "token_type": "Bearer",
             "expires_in": 31536000,
             "refresh_token": "refresh_token"}
+        self.credentials = mock.Mock(spec='oauth2client.client.OAuth2Credentials')
+        self.credentials.token_response = self.token
+        self.credentials.authorize = mock.Mock(spec_set='oauth2client.client.OAuth2Credentials.authorize')
         self.mock_creds_saver = mock.Mock(spec=['credentials'])
         self.mock_token_saver = mock.Mock(spec=['token'])
 
@@ -54,4 +55,3 @@ class TestSDK(unittest.TestCase):
             "token_type": "Bearer",
             "expires_in": 31536000,
             "refresh_token": "refresh_token"}
-

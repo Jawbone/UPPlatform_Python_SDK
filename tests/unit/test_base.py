@@ -5,7 +5,7 @@ import datetime
 import httplib
 import json
 import mock
-import test.unit
+import tests.unit
 import upapi.base
 import upapi.endpoints
 import upapi.exceptions
@@ -13,7 +13,7 @@ import upapi.meta
 import upapi.scopes
 
 
-class TestUpApi(test.unit.TestResource):
+class TestUpApi(tests.unit.TestResource):
     @mock.patch('datetime.datetime', autospec=True)
     @mock.patch('oauth2client.client.OAuth2Credentials', autospec=True)
     def test_token_to_creds(self, mock_creds, mock_dt):
@@ -220,9 +220,11 @@ class TestUpApi(test.unit.TestResource):
         """
         mock_exchange.return_value = self.credentials
         callback_url = 'http://127.0.0.1:8080/dummy?state=state&code=code'
-        self.up.get_up_token(callback_url)
+        token = self.up.get_up_token(callback_url)
         mock_exchange.assert_called_with(self.up.flow, 'code')
         self.assertEqual(self.up.credentials, self.credentials)
+        self.assertEqual(self.up.token, self.token)
+        self.assertEqual(token, self.token)
         mock_savers.assert_called_with(self.up)
 
     def _set_token_response(self, token):
@@ -266,7 +268,7 @@ class TestUpApi(test.unit.TestResource):
         # Now refresh.
         #
         self.upcreds.refresh_token()
-        mock_refresh.assert_called_with(self.upcreds.http)
+        self.assertTrue(mock_refresh.called)
         self.assertEqual(self.upcreds.credentials.token_response, new_token)
         mock_savers.assert_called_with(self.upcreds)
 

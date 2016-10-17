@@ -3,20 +3,8 @@ This is the Python SDK for the Jawbone UP API.
 
 For API details: https://jawbone.com/up/developer
 For SDK details: https://github.com/Jawbone/UPPlatform_Python_SDK
-
-When testing, if you are unable to use HTTPS, you will need to do one of the following:
-
-1. Set an environment variable.
-
-export OAUTHLIB_INSECURE_TRANSPORT=1
-
-2. Set the above in Python (somewhere before you import the SDK)
-
-import os
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 """
 import upapi.endpoints
-import upapi.meta
 import upapi.base
 import upapi.user
 

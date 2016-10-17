@@ -2,14 +2,13 @@
 Unit tests for upapi.__init__
 """
 import mock
-import test.unit
-import unittest
+import tests.unit
 import upapi
 import upapi.endpoints
 import upapi.scopes
 
 
-class TestUp(test.unit.TestSDK):
+class TestUp(tests.unit.TestSDK):
 
     @mock.patch('upapi.base.UpApi', autospec=True)
     def test_up(self, mock_upapi):
@@ -27,13 +26,13 @@ class TestUp(test.unit.TestSDK):
             upapi.client_secret,
             upapi.redirect_uri,
             app_scope=upapi.scope,
-            credentials_saver = upapi.credentials_saver,
-            user_credentials = upapi.credentials,
+            credentials_saver=upapi.credentials_saver,
+            user_credentials=upapi.credentials,
             token_saver=upapi.token_saver,
             user_token=upapi.token)
 
 
-class TestGetRedirectUrl(test.unit.TestSDK):
+class TestGetRedirectUrl(tests.unit.TestSDK):
 
     @mock.patch('upapi.base.UpApi.get_redirect_url', autospec=True)
     def test_get_redirect_url(self, mock_redirect):
@@ -46,7 +45,7 @@ class TestGetRedirectUrl(test.unit.TestSDK):
         self.assertTrue(mock_redirect.called)
 
 
-class TestGetToken(test.unit.TestSDK):
+class TestGetToken(tests.unit.TestSDK):
 
     @mock.patch('upapi.base.UpApi.get_up_token', autospec=True)
     def test_get_token(self, mock_get_token):
@@ -64,11 +63,12 @@ class TestGetToken(test.unit.TestSDK):
         # Set the token
         #
         mock_get_token.return_value = self.token
-        upapi.get_token('https://callback.url')
+        token = upapi.get_token('https://callback.url')
+        self.assertEqual(token, self.token)
         self.assertEqual(upapi.token, self.token)
 
 
-class TestRefreshToken(test.unit.TestSDK):
+class TestRefreshToken(tests.unit.TestSDK):
 
     @mock.patch('upapi.base.UpApi.refresh_token', autospec=True)
     def test_refresh_token(self, mock_refresh):
@@ -84,7 +84,7 @@ class TestRefreshToken(test.unit.TestSDK):
         self.assertEqual(upapi.token, refreshed_token)
 
 
-class TestDisconnect(test.unit.TestSDK):
+class TestDisconnect(tests.unit.TestSDK):
 
     @mock.patch('upapi.base.UpApi.disconnect', autospec=True)
     def test_disconnect(self, mock_disconnect):
@@ -95,10 +95,11 @@ class TestDisconnect(test.unit.TestSDK):
         """
         upapi.token = self.token
         upapi.disconnect()
+        self.assertTrue(mock_disconnect.called)
         self.assertIsNone(upapi.token)
 
 
-class TestGetUser(test.unit.TestSDK):
+class TestGetUser(tests.unit.TestSDK):
 
     @mock.patch('upapi.user.User', autospec=True)
     def test_get_user(self, mock_user):
