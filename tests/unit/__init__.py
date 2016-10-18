@@ -49,9 +49,11 @@ class TestSDK(unittest.TestCase):
         upapi.client_secret = 'client_secret'
         upapi.redirect_uri = 'redirect_uri'
         upapi.token = None
+        upapi.credentials = None
 
         self.token = {
             "access_token": "access_token",
             "token_type": "Bearer",
             "expires_in": 31536000,
             "refresh_token": "refresh_token"}
+        self.credentials = mock.Mock(spec='oauth2client.client.OAuth2Credentials')

@@ -39,6 +39,7 @@ import httplib
 import json
 import traceback
 import upapi
+import upapi.base
 import upapi.scopes
 import urllib
 
@@ -95,6 +96,15 @@ class TestSystem(object):
         assert actual == expected, ASSERTFAIL.format(actual, expected)
 
     @staticmethod
+    def assert_none(actual):
+        """
+        Verify actual is None
+
+        :param actual: real value
+        """
+        assert actual is None, ASSERTFAIL.format(actual, 'None')
+
+    @staticmethod
     def assert_not_none(actual):
         """
         Verify actual is not None
@@ -104,16 +114,33 @@ class TestSystem(object):
         assert actual is not None, ASSERTFAIL.format(actual, 'not None')
 
     @staticmethod
-    def assert_time_within(actual, window=2):
+    def assert_datetime_within(actual, expected=None, window=2):
         """
-        Verify that a unix timestamp is between now and (now - window).
+        Verify that a datetime is between expected and (expected +/- window).
 
-        :param actual: unix timestamp
+        :param actual: datetime
+        :param expected: expected datetime (defaults to now)
         :param window: allowable number of seconds in the past (default 2)
         """
-        now = datetime.datetime.now()
+        if expected is None:
+            now = datetime.datetime.now()
+        else:
+            now = expected
         delta = datetime.timedelta(seconds=window)
-        assert (now - delta) <= actual <= now, ASSERTFAIL.format(actual, 'within {}s of {}'.format(window, now))
+        assert (now - delta) <= actual <= now + delta, ASSERTFAIL.format(actual, 'within {}s of {}'.format(window, now))
+
+    @staticmethod
+    def assert_time_within(actual, expected, window=1):
+        """
+        Verify that a unixtime is between expected and (expected - window)
+
+        :param actual: unix timestamp
+        :param expected: expected timestamp
+        :param window: allowable number of seconds in the past (default 1)
+        """
+        assert (expected - window) <= actual <= expected, ASSERTFAIL.format(actual, 'within {}s of {}'.format(
+            window,
+            expected))
 
     @staticmethod
     def assert_in(actual, options):
@@ -134,7 +161,7 @@ class TestSystem(object):
         self.assert_equal(meta.user_xid, self.test_user['xid'])
         self.assert_equal(meta.message, httplib.responses[httplib.OK])
         self.assert_equal(meta.code, httplib.OK)
-        self.assert_time_within(meta.time)
+        self.assert_datetime_within(meta.time)
 
     def run(self):
         """
@@ -203,14 +230,42 @@ class TestRefreshToken(TestSystem):
 
     def _run(self):
         """
-        Verify token refreshed correctly.
+        Verify token and credentials refreshed correctly.
         """
+        self.assert_none(upapi.credentials)
         upapi.refresh_token()
+
+        #
+        # Verify token
+        #
         new_token = upapi.token
         self.assert_not_none(new_token['access_token'])
         self.assert_equal(new_token['token_type'], self.old_token['token_type'])
-        self.assert_equal(new_token['expires_in'], self.old_token['expires_in'])
+        self.assert_time_within(new_token['expires_in'], self.old_token['expires_in'])
         self.assert_equal(new_token['refresh_token'], self.old_token['refresh_token'])
+
+        #
+        # Verify credentials
+        #
+        new_creds = upapi.credentials
+        self.assert_not_none(new_creds.access_token)
+        self.assert_equal(new_creds.client_id, upapi.client_id)
+        self.assert_equal(new_creds.client_secret, upapi.client_secret)
+        self.assert_equal(new_creds.refresh_token, self.old_token['refresh_token'])
+
+        #
+        # Expiry is next year give or take a few hours
+        #
+        next_year = datetime.datetime.now()
+        next_year = next_year.replace(year=next_year.year + 1)
+        self.assert_datetime_within(new_creds.token_expiry, expected=next_year, window=4*60*60)
+
+        self.assert_equal(new_creds.token_uri, secrets['web']['token_uri'])
+        self.assert_equal(new_creds.user_agent, upapi.base.USERAGENT)
+        self.assert_none(new_creds.revoke_uri)
+        self.assert_equal(new_creds.token_response, new_token)
+        self.assert_equal(new_creds.scopes, set(upapi.scope))
+        self.assert_none(new_creds.token_info_uri)
 
 
 class TestUser(TestSystem):

@@ -59,8 +59,10 @@ def get_token(callback_url):
     :param callback_url: the URL on your server that Jawbone sent the user back to
     :return: a dictionary containing the token
     """
-    global token
-    token = up().get_up_token(callback_url)
+    global token, credentials
+    my_up = up()
+    token = my_up.get_up_token(callback_url)
+    credentials = my_up.credentials
     return token
 
 
@@ -70,8 +72,10 @@ def refresh_token():
 
     :return: the new token
     """
-    global token
-    token = up().refresh_token()
+    global token, credentials
+    my_up = up()
+    token = my_up.refresh_token()
+    credentials = my_up.credentials
     return token
 
 
@@ -97,5 +101,6 @@ def disconnect():
     Revoke the API access for this user.
     """
     up().disconnect()
-    global token
+    global token, credentials
     token = None
+    credentials = None

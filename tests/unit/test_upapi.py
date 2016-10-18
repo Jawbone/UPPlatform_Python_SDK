@@ -47,56 +47,87 @@ class TestGetRedirectUrl(tests.unit.TestSDK):
 
 class TestGetToken(tests.unit.TestSDK):
 
-    @mock.patch('upapi.base.UpApi.get_up_token', autospec=True)
-    def test_get_token(self, mock_get_token):
+    @mock.patch('upapi.up', autospec=True)
+    def test_get_token(self, mock_up):
         """
         Verify that global token gets set.
 
-        :param mock_get_token: mock UpApi method
+        :param mock_up: mock UpApi getter
         """
         #
-        # Token not set yet.
+        # Token and credentials not set yet.
         #
         self.assertIsNone(upapi.token)
+        self.assertIsNone(upapi.credentials)
 
         #
-        # Set the token
+        # Set up the mock to return the proper token and credential values
         #
-        mock_get_token.return_value = self.token
-        token = upapi.get_token('https://callback.url')
+        mock_up.return_value = mock.Mock('upapi.base.UpApi', autospec=True)
+        mock_up.return_value.get_up_token = mock.Mock('upapi.base.UpApi.get_up_token', autospec=True)
+        mock_up.return_value.get_up_token.return_value = self.token
+        mock_up.return_value.credentials = mock.Mock('upapi.base.UpApi.credentials', autospec=True)
+
+        #
+        # Set the token and credentials. Then verify.
+        callback_url = 'https://callback.url'
+        token = upapi.get_token(callback_url)
+        mock_up.assert_called_with()
+        mock_up.return_value.get_up_token.assert_called_with(callback_url)
         self.assertEqual(token, self.token)
         self.assertEqual(upapi.token, self.token)
+        self.assertEqual(upapi.credentials, mock_up.return_value.credentials)
 
 
 class TestRefreshToken(tests.unit.TestSDK):
 
-    @mock.patch('upapi.base.UpApi.refresh_token', autospec=True)
-    def test_refresh_token(self, mock_refresh):
+    @mock.patch('upapi.up', autospec=True)
+    def test_refresh_token(self, mock_up):
         """
         Verify that global token gets set correctly when we refresh.
 
-        :param mock_refresh: mock UpApi method
+        :param mock_up: mock UpApi getter
         """
         upapi.token = self.token
+
+        #
+        # Set up the mocks to return the token and credentials
+        #
+        mock_up.return_value = mock.Mock('upapi.base.UpApi', autospec=True)
+        mock_up.return_value.refresh_token = mock.Mock('upapi.base.UpApi.refresh_token', autospec=True)
         refreshed_token = {'access_token': 'refreshed_token'}
-        mock_refresh.return_value = refreshed_token
+        mock_up.return_value.refresh_token.return_value = refreshed_token
+        mock_up.return_value.credentials = mock.Mock('upapi.base.UpApi.credentials', autospec=True)
+
+        #
+        # Refresh and test
+        #
         upapi.refresh_token()
+        mock_up.assert_called_with()
+        mock_up.return_value.refresh_token.assert_called_with()
         self.assertEqual(upapi.token, refreshed_token)
+        self.assertEqual(upapi.credentials, mock_up.return_value.credentials)
 
 
 class TestDisconnect(tests.unit.TestSDK):
 
-    @mock.patch('upapi.base.UpApi.disconnect', autospec=True)
-    def test_disconnect(self, mock_disconnect):
+    @mock.patch('upapi.up', autospec=True)
+    def test_disconnect(self, mock_up):
         """
         Verify that a disconnect makes the global token None.
 
-        :param mock_disconnect: mock UpApi method
+        :param mock_up: mock UpApi getter
         """
         upapi.token = self.token
+        upapi.credentials = self.credentials
+
+        mock_up.return_value = mock.Mock('upapi.base.UpApi', autospec=True)
+        mock_up.return_value.disconnect = mock.Mock('upapi.base.UpApi.disconnect', autospec=True)
         upapi.disconnect()
-        self.assertTrue(mock_disconnect.called)
+        mock_up.assert_called_with()
+        mock_up.return_value.disconnect.assert_called_with()
         self.assertIsNone(upapi.token)
+        self.assertIsNone(upapi.credentials)
 
 
 class TestGetUser(tests.unit.TestSDK):
