@@ -7,7 +7,7 @@ import upapi.endpoints
 import upapi.user
 
 
-class TestUser(tests.unit.TestResource):
+class TestUser(tests.unit.TestUserResource):
 
     @mock.patch('upapi.user.User.get', autospec=True)
     def test___init__(self, mock_get):
@@ -26,20 +26,37 @@ class TestUser(tests.unit.TestResource):
         mock_get.assert_called_with(user, upapi.endpoints.USER)
         self.assertEqual(user.first, user_data['first'])
         self.assertEqual(user.last, user_data['last'])
+        self.assertIsNone(user._friends)
 
-    @mock.patch('upapi.user.User.get', autospec=True)
-    @mock.patch('upapi.user.friends.Friends', autospec=True)
-    def test_friends(self, mock_friends, mock_get):
+    @mock.patch('upapi.user.User.get_friends', autospec=True)
+    def test_friends(self, mock_get_friends):
         """
         Verify call to create Friends object
 
-        :param mock_friends: mocked Friends object
+        :param mock_get_friends: mocked friends getter
         """
-        user = upapi.user.User(
-            self.app_id,
-            self.app_secret,
-            app_redirect_uri=self.app_redirect_uri,
-            user_token=self.token)
-        self.assertTrue(mock_get.called)
-        user.friends
-        mock_friends.assert_called_with(*user.args, **user.kwargs)
+        mock_get_friends.return_value = mock.Mock('upapi.user.friends.Friends', autospec=True)
+
+        #
+        # Verify _friends is None. Then call the property and verify it gets set.
+        #
+        self.assertIsNone(self.user._friends)
+        first_friends = self.user.friends
+        mock_get_friends.assert_called_once_with(self.user)
+        self.assertEqual(first_friends, mock_get_friends.return_value)
+        self.assertEqual(self.user._friends, first_friends)
+
+        #
+        # Call friends property again and verify that the endpoint is not hit again.
+        #
+        second_friends = self.user.friends
+        mock_get_friends.assert_called_once_with(self.user)
+        self.assertEqual(first_friends, second_friends)
+
+    @mock.patch('upapi.user.friends.Friends', autospec=True)
+    def test_get_friends(self, mock_friends):
+        """
+        Verify call to create Friends object
+        """
+        self.user.get_friends()
+        mock_friends.assert_called_with(*self.user.args, **self.user.kwargs)

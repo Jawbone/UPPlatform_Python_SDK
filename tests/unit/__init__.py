@@ -39,6 +39,22 @@ class TestResource(unittest.TestCase):
             user_credentials=self.credentials)
 
 
+class TestUserResource(TestResource):
+
+    def setUp(self):
+        """
+        Initialize for a regular Resource test and add User object specifics.
+        """
+        super(TestUserResource, self).setUp()
+
+        with mock.patch('upapi.user.User.get', autospec=True):
+            self.user = upapi.user.User(
+                self.app_id,
+                self.app_secret,
+                app_redirect_uri=self.app_redirect_uri,
+                user_token=self.token)
+
+
 class TestSDK(unittest.TestCase):
 
     def setUp(self):
