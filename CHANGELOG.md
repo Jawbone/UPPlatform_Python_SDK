@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/) 
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.4] - 2016-10-31
+### Added
+- System tests
+- Global ```upapi.credentials``` object if users prefer the oauth2client's credentials object to the regular access token.
+
+### Changed
+- Refactored OAuth from requests_oauthlib to oauth2client
+- Refactored test directory to tests to avoid naming collisions
+
+### Fixed
+- ```upapi.get_token``` actually returns the token now
+
 ## [0.3] - 2016-08-31
 ### Added
 - CHANGELOG.md!

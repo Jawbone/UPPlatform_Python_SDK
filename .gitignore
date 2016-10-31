@@ -68,3 +68,8 @@ pip-selfcheck.json
 
 # Pycharm
 .idea/
+
+#
+# Secret keys
+#
+client_secrets.json

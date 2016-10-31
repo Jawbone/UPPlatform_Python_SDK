@@ -3,20 +3,8 @@ This is the Python SDK for the Jawbone UP API.
 
 For API details: https://jawbone.com/up/developer
 For SDK details: https://github.com/Jawbone/UPPlatform_Python_SDK
-
-When testing, if you are unable to use HTTPS, you will need to do one of the following:
-
-1. Set an environment variable.
-
-export OAUTHLIB_INSECURE_TRANSPORT=1
-
-2. Set the above in Python (somewhere before you import the SDK)
-
-import os
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 """
 import upapi.endpoints
-import upapi.meta
 import upapi.base
 import upapi.user
 
@@ -25,15 +13,15 @@ Set these variables with the values for your app from https://developer.jawbone.
 
 If you have multiple redirect URLs, you can change this value as needed.
 
-If you do not specify a token_saver, upapi will not automatically refresh expired tokens.
-
-If you specify a token, the SDK will use it to establish the OAuth connection. A token refresh or disconnect
-will automatically update this variable.
+If you specify a credentials object or a token, the SDK will use it to establish the OAuth connection. Manually
+refreshing the token or disconnecting will automatically update these variables.
 """
 client_id = None
 client_secret = None
 redirect_uri = None
 scope = None
+credentials_saver = None
+credentials = None
 token_saver = None
 token = None
 
@@ -47,10 +35,12 @@ def up():
     return upapi.base.UpApi(
         client_id,
         client_secret,
-        app_redirect_uri=redirect_uri,
+        redirect_uri,
         app_scope=scope,
-        app_token_saver=token_saver,
-        app_token=token)
+        credentials_saver=credentials_saver,
+        user_credentials=credentials,
+        token_saver=token_saver,
+        user_token=token)
 
 
 def get_redirect_url():
@@ -59,8 +49,7 @@ def get_redirect_url():
 
     :return: your app-specific URL
     """
-    authorization_url, state = up().oauth.authorization_url(upapi.endpoints.AUTH)
-    return authorization_url
+    return up().get_redirect_url()
 
 
 def get_token(callback_url):
@@ -70,8 +59,10 @@ def get_token(callback_url):
     :param callback_url: the URL on your server that Jawbone sent the user back to
     :return: a dictionary containing the token
     """
-    global token
-    token = up().get_up_token(callback_url)
+    global token, credentials
+    my_up = up()
+    token = my_up.get_up_token(callback_url)
+    credentials = my_up.credentials
     return token
 
 
@@ -81,8 +72,10 @@ def refresh_token():
 
     :return: the new token
     """
-    global token
-    token = up().refresh_token()
+    global token, credentials
+    my_up = up()
+    token = my_up.refresh_token()
+    credentials = my_up.credentials
     return token
 
 
@@ -95,10 +88,12 @@ def get_user():
     return upapi.user.User(
         client_id,
         client_secret,
-        app_redirect_uri=redirect_uri,
+        redirect_uri,
         app_scope=scope,
-        app_token_saver=token_saver,
-        app_token=token)
+        credentials_saver=credentials_saver,
+        user_credentials=credentials,
+        token_saver=token_saver,
+        user_token=token)
 
 
 def disconnect():
@@ -106,5 +101,6 @@ def disconnect():
     Revoke the API access for this user.
     """
     up().disconnect()
-    global token
+    global token, credentials
     token = None
+    credentials = None
