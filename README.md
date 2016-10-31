@@ -103,7 +103,7 @@ upapi.disconnect()
 This will use the existing value of ```upapi.token``` to send a disconnection request to the API and then clear the values of ```upapi.credentials``` and ```upapi.token```.
 
 ## User
-The SDK creates [```User```](https://github.com/Jawbone/UPPlatform_Python_SDK/blob/pdr-182/upapi/user/__init__.py) objects to represent the data available from the [User endpoint](https://jawbone.com/up/developer/endpoints/user). The easiest way to get the current user's object is to initialize the SDK and then run:
+The SDK creates [```User```](https://github.com/Jawbone/UPPlatform_Python_SDK/blob/master/upapi/user/__init__.py#L11) objects to represent the data available from the [User endpoint](https://jawbone.com/up/developer/endpoints/user). The easiest way to get the current user's object is to initialize the SDK and then run:
 ```python
 user = upapi.get_user()
 ```
@@ -120,7 +120,7 @@ u'Franklin'
 Remember that the amount of user data available depends on the scope--```basic_read``` vs. ```extended_read```--the user granted access.
 
 ### Friends
-You can retrieve a user's friends list by accessing the ```friends``` property of the user object. ```friends``` is an object that contains the ```size``` of the friends list and the list itself under ```items```. Each element of the ```items``` list is a [```Friend```](https://github.com/Jawbone/UPPlatform_Python_SDK/blob/pdr-182/upapi/user/friends.py) object.
+You can retrieve a user's friends list by accessing the ```friends``` property of the user object. ```friends``` is an object that contains the ```size``` of the friends list and the list itself under ```items```. Each element of the ```items``` list is a [```Friend```](https://github.com/Jawbone/UPPlatform_Python_SDK/blob/master/upapi/user/friends.py#L21) object.
 ```python
 >>> friends = user.friends
 >>> friends.size
@@ -128,11 +128,12 @@ You can retrieve a user's friends list by accessing the ```friends``` property o
 >>> friends.items[1].xid
 u'VkzWpOaqgeX'
 ```
+
 ## UpApi
 All the SDK objects that represent the API [Endpoints](https://jawbone.com/up/developer/endpoints) inherit from [```UpApi```](https://github.com/Jawbone/UPPlatform_Python_SDK/blob/master/upapi/__init__.py) objects to manage the OAuth connection and issue all requests to the UP API. If you want to manually manage the connections, requests, and objects, you can create ```UpApi``` (or any other) objects directly.
 
 ### Meta
-All of the UP API endpoint responses contain a ```meta``` key that describes the response itself. All SDK objects convert this JSON to a [```Meta```](https://github.com/Jawbone/UPPlatform_Python_SDK/blob/pdr-182/upapi/meta.py) object. You can access the members of this object through the ```meta``` member. For example, here's how you would access ```meta``` data in a user object:
+All of the UP API endpoint responses contain a ```meta``` key that describes the response itself. All SDK objects convert this JSON to a [```Meta```](https://github.com/Jawbone/UPPlatform_Python_SDK/blob/master/upapi/meta.py) object. You can access the members of this object through the ```meta``` member. For example, here's how you would access ```meta``` data in a user object:
 ```python
 >>> user.meta.user_xid
 u'6xl39CsoVp2KirfHwVq_Fx'
