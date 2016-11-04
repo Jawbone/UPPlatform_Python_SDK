@@ -129,6 +129,17 @@ You can retrieve a user's friends list by accessing the ```friends``` property o
 u'VkzWpOaqgeX'
 ```
 
+If you ever need to renew a user's friends list, you can simply call ```get_friends```. This method will both return the latest friends list and set the ```friends``` property on the ```User``` object.
+```python
+>>> friends = user.friends
+...
+#something changes the friends list
+...
+>>> new_friends = user.get_friends()
+>>> new_friends == user.friends
+True
+```
+
 ## UpApi
 All the SDK objects that represent the API [Endpoints](https://jawbone.com/up/developer/endpoints) inherit from [```UpApi```](https://github.com/Jawbone/UPPlatform_Python_SDK/blob/master/upapi/__init__.py) objects to manage the OAuth connection and issue all requests to the UP API. If you want to manually manage the connections, requests, and objects, you can create ```UpApi``` (or any other) objects directly.
 
