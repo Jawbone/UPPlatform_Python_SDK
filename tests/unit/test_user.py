@@ -58,5 +58,15 @@ class TestUser(tests.unit.TestUserResource):
         """
         Verify call to create Friends object
         """
+        #
+        # _friends should start as None
+        #
+        self.assertIsNone(self.user._friends)
+
+        #
+        # Get friends and verify the call and that _friends is set.
+        #
+        mock_friends.return_value = mock.Mock()
         self.user.get_friends()
         mock_friends.assert_called_with(*self.user.args, **self.user.kwargs)
+        self.assertEqual(self.user._friends, mock_friends.return_value)

@@ -40,8 +40,9 @@ class User(upapi.base.UpApi):
 
     def get_friends(self):
         """
-        Call the friends endpoint and convert the response to a Friends object.
+        Call the friends endpoint, convert the response to a Friends object, and save it.
 
         :return: a Friends object
         """
-        return upapi.user.friends.Friends(*self.args, **self.kwargs)
+        self._friends = upapi.user.friends.Friends(*self.args, **self.kwargs)
+        return self._friends
