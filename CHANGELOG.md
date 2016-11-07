@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+### Added
+- ```user.get_friends()``` to retrieve/refresh the friends list
+
 ### Changed
 - Refactored ```user.friends``` to cache the friends list in ```user._friends``` rather than hit the API every time.
 
