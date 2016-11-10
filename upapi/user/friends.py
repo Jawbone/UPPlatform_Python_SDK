@@ -11,7 +11,7 @@ class Friends(upapi.base.UpApi):
     """
     def __init__(self, *args, **kwargs):
         super(Friends, self).__init__(*args, **kwargs)
-        friends_data = self.get(upapi.endpoints.FRIENDS)
+        friends_data = self.get(upapi.endpoints.USERFRIENDS)
         self.items = []
         for item in friends_data['items']:
             self.items.append(Friend(item))

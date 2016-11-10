@@ -28,7 +28,7 @@ class TestFriends(tests.unit.TestResource):
             app_redirect_uri=self.app_redirect_uri,
             app_scope=self.app_scope,
             user_token=self.token)
-        mock_get.assert_called_with(friends, upapi.endpoints.FRIENDS)
+        mock_get.assert_called_with(friends, upapi.endpoints.USERFRIENDS)
         for index, friend in enumerate(friends.items):
             self.assertEqual(friend.xid, friends_data['items'][index]['xid'])
         self.assertEqual(friends.size, friends_data['size'])
