@@ -9,6 +9,7 @@ import oauth2client.client
 import upapi.endpoints
 import upapi.exceptions
 import upapi.scopes
+import urllib
 import urlparse
 
 
@@ -238,7 +239,7 @@ class UpApi(object):
         if self.resp.status not in ok_statuses:
             raise upapi.exceptions.UnexpectedAPIResponse('{} {}'.format(self.resp.status, self.content))
 
-    def _request(self, url, method='GET'):
+    def _request(self, url, method='GET', data=None, ok_statuses=None):
         """
         Issue an HTTP request using the authorized Http object, handle bad responses, set the Meta object from the
         response content, and return the data as JSON.
@@ -247,8 +248,18 @@ class UpApi(object):
         :param method: HTTP method (e.g. GET, POST, etc.), defaults to GET
         :return: JSON data
         """
-        self.resp, self.content = self.http.request(url, method)
-        self._raise_for_status([httplib.OK])
+        #
+        # TODO: clean up the ability to send a POST and add unit tests.
+        #
+        if data is None:
+            req_body = None
+        else:
+            req_body = urllib.urlencode(data)
+        self.resp, self.content = self.http.request(url, method, body=req_body)
+
+        if ok_statuses is None:
+            ok_statuses = [httplib.OK]
+        self._raise_for_status(ok_statuses)
         resp_json = json.loads(self.content)
         self.meta = upapi.meta.Meta(**resp_json['meta'])
         return resp_json['data']

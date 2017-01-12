@@ -161,7 +161,7 @@ class TestSystem(object):
         self.assert_equal(meta.user_xid, self.test_user['xid'])
         self.assert_equal(meta.message, httplib.responses[httplib.OK])
         self.assert_equal(meta.code, httplib.OK)
-        self.assert_datetime_within(meta.time)
+        self.assert_datetime_within(meta.time, window=11)
 
     def run(self):
         """
@@ -258,7 +258,7 @@ class TestRefreshToken(TestSystem):
         #
         next_year = datetime.datetime.now()
         next_year = next_year.replace(year=next_year.year + 1)
-        self.assert_datetime_within(new_creds.token_expiry, expected=next_year, window=4*60*60)
+        self.assert_datetime_within(new_creds.token_expiry, expected=next_year, window=5*60*60)
 
         self.assert_equal(new_creds.token_uri, secrets['web']['token_uri'])
         self.assert_equal(new_creds.user_agent, upapi.base.USERAGENT)
