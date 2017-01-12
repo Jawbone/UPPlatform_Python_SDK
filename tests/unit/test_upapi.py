@@ -5,7 +5,36 @@ import mock
 import tests.unit
 import upapi
 import upapi.endpoints
+import upapi.exceptions
 import upapi.scopes
+
+
+class TestGetAccessToken(tests.unit.TestResource):
+
+    def test_get_access_token(self):
+        """
+        Verify access token getter.
+        """
+        #
+        # No creds, so getter should raise.
+        #
+        self.assertRaises(upapi.exceptions.MissingCredentials, upapi.get_access_token)
+
+        #
+        # Set creds and get the right token
+        #
+        upapi.credentials = self.credentials
+        self.assertEqual(upapi.get_access_token(), self.token)
+
+
+class TestSetAccessToken(tests.unit.TestSDK):
+
+    def test_set_access_token(self):
+        """
+        Verify the token is set correctly by trying to get it back.
+        """
+        upapi.set_access_token(self.token)
+        self.assertEqual(upapi.get_access_token(), self.token)
 
 
 class TestUp(tests.unit.TestSDK):

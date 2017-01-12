@@ -8,6 +8,7 @@ import json
 import oauth2client.client
 import upapi.endpoints
 import upapi.exceptions
+import upapi.meta
 import upapi.scopes
 import urllib
 import urlparse
@@ -16,7 +17,7 @@ import urlparse
 """
 Setting a specific User-Agent for analytics purposes.
 """
-SDK_VERSION = '0.5'
+SDK_VERSION = '0.6'
 USERAGENT = 'upapi/{} (https://developer.jawbone.com)'.format(SDK_VERSION)
 
 
