@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/) 
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.5] - 2017-01-12
+### Added
+- ```user.get_friends()``` to retrieve/refresh the friends list
+
+### Changed
+- Refactored ```user.friends``` to cache the friends list in ```user._friends``` rather than hit the API every time.
+
 ## [0.4] - 2016-10-31
 ### Added
 - System tests

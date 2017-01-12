@@ -21,6 +21,7 @@ class User(upapi.base.UpApi):
         """
         self.args = args
         self.kwargs = kwargs
+        self._friends = None
         super(User, self).__init__(*args, **kwargs)
         resp_data = self.get(upapi.endpoints.USER)
         for key, val in resp_data.iteritems():
@@ -29,8 +30,19 @@ class User(upapi.base.UpApi):
     @property
     def friends(self):
         """
-        Call the friends endpoint and convert the response to a Friends object.
+        If not cached yet, cache the Friends object. Return the Friends object.
 
-        :return: a list of Friend objects
+        :return: a Friends object
         """
-        return upapi.user.friends.Friends(*self.args, **self.kwargs)
+        if self._friends is None:
+            self._friends = self.get_friends()
+        return self._friends
+
+    def get_friends(self):
+        """
+        Call the friends endpoint, convert the response to a Friends object, and save it.
+
+        :return: a Friends object
+        """
+        self._friends = upapi.user.friends.Friends(*self.args, **self.kwargs)
+        return self._friends
