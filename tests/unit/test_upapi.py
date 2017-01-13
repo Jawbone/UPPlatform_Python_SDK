@@ -56,9 +56,7 @@ class TestUp(tests.unit.TestSDK):
             upapi.redirect_uri,
             app_scope=upapi.scope,
             credentials_saver=upapi.credentials_saver,
-            user_credentials=upapi.credentials,
-            token_saver=upapi.token_saver,
-            user_token=upapi.token)
+            user_credentials=upapi.credentials)
 
 
 class TestGetRedirectUrl(tests.unit.TestSDK):

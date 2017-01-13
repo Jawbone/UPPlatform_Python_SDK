@@ -39,9 +39,7 @@ def up():
         redirect_uri,
         app_scope=scope,
         credentials_saver=credentials_saver,
-        user_credentials=credentials,
-        token_saver=token_saver,
-        user_token=token)
+        user_credentials=credentials)
 
 
 """

@@ -83,41 +83,28 @@ class TestUpApi(tests.unit.TestResource):
         mock_http.assert_called_with()
         self.credentials.authorize.assert_called()
 
-    @mock.patch('upapi.base.UpApi.token_to_creds', autospec=True)
-    def test___init__(self, mock_t2c):
+    def test___init__(self):
         """
-        Verify that UpApi creation correctly handles credentials and tokens passed in and that scope is defaulted.
+        Verify that UpApi creation correctly defaults scope.
         """
         #
-        # Neither passed in, no call
-        #
-        upapi.base.UpApi(self.app_id, self.app_secret, self.app_redirect_uri)
-        self.assertFalse(mock_t2c.called)
-
-        #
-        # Both passed in, no call
         # No scope, then default
         #
         up = upapi.base.UpApi(
             self.app_id,
             self.app_secret,
             self.app_redirect_uri,
-            user_credentials=self.credentials,
-            user_token=self.token)
-        self.assertFalse(mock_t2c.called)
+            user_credentials=self.credentials)
         self.assertEqual(up.app_scope, upapi.scopes.BASIC_READ)
 
         #
-        # Only token passed in, call
         # Scope passed in, save it
         #
         up = upapi.base.UpApi(
             self.app_id,
             self.app_secret,
             self.app_redirect_uri,
-            app_scope=self.app_scope,
-            user_token=self.token)
-        mock_t2c.assert_called_with(up, self.token)
+            app_scope=self.app_scope)
         self.assertEqual(up.app_scope, self.app_scope)
 
     @mock.patch('upapi.base.UpApi._refresh_flow', autospec=True)
@@ -161,60 +148,32 @@ class TestUpApi(tests.unit.TestResource):
         self.assertEqual(self.up.credentials, mock_creds)
         self.assertEqual(self.up.token, self.token)
 
-    def test_call_savers(self):
+    def test_call_saver(self):
         """
-        Verify that credential and token savers only get called if they exist.
+        Verify that credential saver only gets called if it exists.
         """
         #
-        # No savers, no calls
+        # No saver, no call
         #
-        self.up.call_savers()
+        self.up.call_saver()
         self.assertFalse(self.mock_creds_saver.called)
-        self.assertFalse(self.mock_token_saver.called)
 
         #
-        # Cred saver only
+        # Cred saver
         #
         up = upapi.base.UpApi(
             self.app_id,
             self.app_secret,
             self.app_redirect_uri,
             credentials_saver=self.mock_creds_saver)
-        up.call_savers()
+        up.call_saver()
         self.mock_creds_saver.assert_called_with(up.credentials)
-        self.assertFalse(self.mock_token_saver.called)
-
-        #
-        # Token saver only
-        #
-        self.mock_creds_saver.reset_mock()
-        up = upapi.base.UpApi(
-            self.app_id,
-            self.app_secret,
-            self.app_redirect_uri,
-            token_saver=self.mock_token_saver)
-        up.call_savers()
-        self.assertFalse(self.mock_creds_saver.called)
-        self.mock_token_saver.assert_called_with(up.token)
-
-        #
-        # Both savers
-        #
-        up = upapi.base.UpApi(
-            self.app_id,
-            self.app_secret,
-            self.app_redirect_uri,
-            credentials_saver=self.mock_creds_saver,
-            token_saver=self.mock_token_saver)
-        up.call_savers()
-        self.mock_creds_saver.assert_called_with(up.credentials)
-        self.mock_token_saver.assert_called_with(up.token)
 
     @mock.patch('oauth2client.client.OAuth2WebServerFlow.step2_exchange', autospec=True)
-    @mock.patch('upapi.base.UpApi.call_savers', autospec=True)
-    def test_get_up_token(self, mock_savers, mock_exchange):
+    @mock.patch('upapi.base.UpApi.call_saver', autospec=True)
+    def test_get_up_token(self, mock_saver, mock_exchange):
         """
-        Verify that getting a token from API sets the credentials and calls the savers.
+        Verify that getting a token from API sets the credentials and calls the saver.
 
         :param mock_exchange: mocked flow call
         """
@@ -225,7 +184,7 @@ class TestUpApi(tests.unit.TestResource):
         self.assertEqual(self.up.credentials, self.credentials)
         self.assertEqual(self.up.token, self.token)
         self.assertEqual(token, self.token)
-        mock_savers.assert_called_with(self.up)
+        mock_saver.assert_called_with(self.up)
 
     def _set_token_response(self, token):
         """
@@ -243,12 +202,12 @@ class TestUpApi(tests.unit.TestResource):
         return setter
 
     @mock.patch('oauth2client.client.OAuth2Credentials.refresh')
-    @mock.patch('upapi.base.UpApi.call_savers', autospec=True)
-    def test_refresh_token(self, mock_savers, mock_refresh):
+    @mock.patch('upapi.base.UpApi.call_saver', autospec=True)
+    def test_refresh_token(self, mock_saver, mock_refresh):
         """
-        Verify that refreshing the token updates the credentials and calls the savers.
+        Verify that refreshing the token updates the credentials and calls the saver.
 
-        :param mock_savers: mocked token saver call
+        :param mock_saver: mocked token saver call
         :param mock_refresh: mocked token refresh call
         """
         #
@@ -270,7 +229,7 @@ class TestUpApi(tests.unit.TestResource):
         self.upcreds.refresh_token()
         self.assertTrue(mock_refresh.called)
         self.assertEqual(self.upcreds.credentials.token_response, new_token)
-        mock_savers.assert_called_with(self.upcreds)
+        mock_saver.assert_called_with(self.upcreds)
 
     @mock.patch('httplib2.Response', autospec=True)
     def test__raise_for_status(self, mock_resp):
@@ -359,12 +318,12 @@ class TestUpApi(tests.unit.TestResource):
         mock_request.assert_called_with(self.up, resource, method='DELETE')
 
     @mock.patch('upapi.base.UpApi.delete', autospec=True)
-    @mock.patch('upapi.base.UpApi.call_savers', autospec=True)
-    def test_disconnect(self, mock_savers, mock_delete):
+    @mock.patch('upapi.base.UpApi.call_saver', autospec=True)
+    def test_disconnect(self, mock_saver, mock_delete):
         """
-        Verify that a disconnect calls the API, refreshes, and calls the savers.
+        Verify that a disconnect calls the API, refreshes, and calls the saver.
         """
         self.upcreds.disconnect()
         mock_delete.assert_called_with(self.upcreds, upapi.endpoints.DISCONNECT)
         self.assertIsNone(self.upcreds.credentials)
-        mock_savers.assert_called_with(self.upcreds)
+        mock_saver.assert_called_with(self.upcreds)
