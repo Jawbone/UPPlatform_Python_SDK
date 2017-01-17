@@ -14,8 +14,11 @@ Set these variables with the values for your app from https://developer.jawbone.
 
 If you have multiple redirect URLs, you can change this value as needed.
 
-If you specify a credentials object or a token, the SDK will use it to establish the OAuth connection. Manually
-refreshing the token or disconnecting will automatically update these variables.
+If you specify a credentials object, the SDK will use it to establish the OAuth connection. Manually
+refreshing the token or disconnecting will automatically update the credentials variable.
+
+If you only have an access token and not a credentials object, you can use set_access_token, which will set the
+credentials variable from that token.
 """
 client_id = None
 client_secret = None
@@ -23,8 +26,6 @@ redirect_uri = None
 scope = None
 credentials_saver = None
 credentials = None
-token = None
-token_saver = None
 
 
 def up():
@@ -94,11 +95,12 @@ def get_redirect_url():
 def get_token(callback_url):
     """
     Retrieve the OAuth token from the server based on the authorization code in the callback_url.
+    This function returns the access token, and it sets the upapi.credentials object.
 
     :param callback_url: the URL on your server that Jawbone sent the user back to
     :return: a dictionary containing the token
     """
-    global token, credentials
+    global credentials
     my_up = up()
     token = my_up.get_up_token(callback_url)
     credentials = my_up.credentials
@@ -111,7 +113,7 @@ def refresh_token():
 
     :return: the new token
     """
-    global token, credentials
+    global credentials
     my_up = up()
     token = my_up.refresh_token()
     credentials = my_up.credentials
@@ -123,8 +125,7 @@ def disconnect():
     Revoke the API access for this user.
     """
     up().disconnect()
-    global token, credentials
-    token = None
+    global credentials
     credentials = None
 
 
