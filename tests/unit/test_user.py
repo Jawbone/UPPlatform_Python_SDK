@@ -22,7 +22,7 @@ class TestUser(tests.unit.TestUserResource):
             self.app_id,
             self.app_secret,
             app_redirect_uri=self.app_redirect_uri,
-            user_token=self.token)
+            user_credentials=self.credentials)
         mock_get.assert_called_with(user, upapi.endpoints.USER)
         self.assertEqual(user.first, user_data['first'])
         self.assertEqual(user.last, user_data['last'])
