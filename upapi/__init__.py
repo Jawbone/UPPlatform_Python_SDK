@@ -14,6 +14,10 @@ Set these variables with the values for your app from https://developer.jawbone.
 
 If you have multiple redirect URLs, you can change this value as needed.
 
+If you specify a credentials_storage object, the SDK will use it to save automatically refreshed credentials. Refer to
+http://oauth2client.readthedocs.io/en/latest/source/oauth2client.client.html#oauth2client.client.Storage and
+https://developers.google.com/api-client-library/python/guide/aaa_oauth#storage for details on storage objects.
+
 If you specify a credentials object, the SDK will use it to establish the OAuth connection. Manually
 refreshing the token or disconnecting will automatically update the credentials variable.
 
@@ -24,7 +28,7 @@ client_id = None
 client_secret = None
 redirect_uri = None
 scope = None
-credentials_saver = None
+credentials_storage = None
 credentials = None
 
 
@@ -39,7 +43,7 @@ def up():
         client_secret,
         redirect_uri,
         app_scope=scope,
-        credentials_saver=credentials_saver,
+        credentials_storage=credentials_storage,
         user_credentials=credentials)
 
 
@@ -145,5 +149,5 @@ def get_user():
         client_secret,
         redirect_uri,
         app_scope=scope,
-        credentials_saver=credentials_saver,
+        credentials_storage=credentials_storage,
         user_credentials=credentials)

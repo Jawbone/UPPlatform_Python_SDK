@@ -46,16 +46,13 @@ class TestUp(tests.unit.TestSDK):
 
         :param mock_upapi: mocked UpApi object
         """
-        #
-        # No override URL
-        #
         upapi.up()
         mock_upapi.assert_called_with(
             upapi.client_id,
             upapi.client_secret,
             upapi.redirect_uri,
             app_scope=upapi.scope,
-            credentials_saver=upapi.credentials_saver,
+            credentials_storage=upapi.credentials_storage,
             user_credentials=upapi.credentials)
 
 
@@ -169,5 +166,5 @@ class TestGetUser(tests.unit.TestSDK):
             upapi.client_secret,
             upapi.redirect_uri,
             app_scope=upapi.scope,
-            credentials_saver=upapi.credentials_saver,
+            credentials_storage=upapi.credentials_storage,
             user_credentials=upapi.credentials)
