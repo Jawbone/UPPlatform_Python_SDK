@@ -70,6 +70,7 @@ pip-selfcheck.json
 .idea/
 
 #
-# Secret keys
+# System test files
 #
-client_secrets.json
+tests/system/client_secrets.json
+tests/system/test_user.creds

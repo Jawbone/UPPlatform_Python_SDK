@@ -14,6 +14,10 @@ import upapi.scopes
 
 
 class TestUpApi(tests.unit.TestResource):
+    """
+    Tests upapi.base.UpApi
+    """
+
     @mock.patch('datetime.datetime', autospec=True)
     @mock.patch('oauth2client.client.OAuth2Credentials', autospec=True)
     def test_token_to_creds(self, mock_creds, mock_dt):
@@ -21,6 +25,7 @@ class TestUpApi(tests.unit.TestResource):
         Verify that token_to_creds instantiates an OAuth2Credentials object with the correct parameters.
 
         :param mock_creds: mocked OAuth2Credentials class
+        :param mock_dt: mocked datetime class
         """
         #
         # Remove some precision from now() so that we don't fail due to the amount of time it takes to verify the test.
@@ -85,7 +90,7 @@ class TestUpApi(tests.unit.TestResource):
 
     def test___init__(self):
         """
-        Verify that UpApi creation correctly defaults scope and sets storage if passed in.
+        Verify that UpApi creation correctly defaults scope.
         """
         #
         # No scope, then default
@@ -104,14 +109,15 @@ class TestUpApi(tests.unit.TestResource):
             self.app_id,
             self.app_secret,
             self.app_redirect_uri,
-            app_scope=self.app_scope,
-            credentials_storage=self.creds_storage)
+            app_scope=self.app_scope)
         self.assertEqual(up.app_scope, self.app_scope)
 
     @mock.patch('upapi.base.UpApi._refresh_flow', autospec=True)
     def test_redirect_uri(self, mock_refresh):
         """
         Verify overriding a redirect url refreshes OAuth.
+
+        :param mock_refresh: mocked flow refresh method
         """
         override_url = 'override_url'
         self.up.redirect_uri = override_url
@@ -148,6 +154,9 @@ class TestUpApi(tests.unit.TestResource):
     def test_token(self, mock_t2c, mock_creds):
         """
         Verify that setting the token sets the credentials and refreshes oauth.
+
+        :param mock_t2c: mocked token_to_creds converter
+        :param mock_creds: mocked Credentials object
         """
         #
         # Mock token_to_creds returning mocked credentials whose token_response is the token.
@@ -311,6 +320,8 @@ class TestUpApi(tests.unit.TestResource):
     def test_disconnect(self, mock_delete):
         """
         Verify that a disconnect calls the API and refreshes.
+
+        :param mock_delete: mocked delete request method
         """
         self.upcreds.disconnect()
         mock_delete.assert_called_with(self.upcreds, upapi.endpoints.DISCONNECT)

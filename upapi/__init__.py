@@ -50,8 +50,8 @@ def up():
 """
 upapi stores access tokens as Credentials objects. If you prefer to use the access tokens returned from the UP OAuth
 flow, use these functions to:
-- get the currently set user's access token from the Credentials object
-- set the current user's access token (and in turn the Credentials object)
+- get the currently set user's access token from the upapi.credentials object
+- set the current user's access token (and in turn the upapi.credentials object)
 """
 
 
@@ -126,7 +126,7 @@ def refresh_token():
 
 def disconnect():
     """
-    Revoke the API access for this user.
+    Revoke API access for this user.
     """
     up().disconnect()
     global credentials

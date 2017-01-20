@@ -61,7 +61,11 @@ class UpApi(object):
         else:
             self.app_scope = app_scope
 
+        #
+        # Set storage first, so that set_store gets called when setting credentials.
+        #
         self.credentials_storage = credentials_storage
+        self._credentials = None
         self.credentials = user_credentials
 
         #
@@ -186,7 +190,7 @@ class UpApi(object):
     def get_up_token(self, callback_url):
         """
         Retrieve a token after the user has logged in and approved your app (i.e., second half of the OAuth handshake).
-        Set the token in the object, and call the savers.
+        Then set the credentials in the object.
 
         :param callback_url: The full URL on your server that Jawbone sent the user back to
         """

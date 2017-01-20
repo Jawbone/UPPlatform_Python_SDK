@@ -10,6 +10,9 @@ import upapi.scopes
 
 
 class TestGetAccessToken(tests.unit.TestResource):
+    """
+    Tests upapi.get_access_token
+    """
 
     def test_get_access_token(self):
         """
@@ -28,6 +31,9 @@ class TestGetAccessToken(tests.unit.TestResource):
 
 
 class TestSetAccessToken(tests.unit.TestSDK):
+    """
+    Tests upapi.set_access_token
+    """
 
     def test_set_access_token(self):
         """
@@ -38,6 +44,9 @@ class TestSetAccessToken(tests.unit.TestSDK):
 
 
 class TestUp(tests.unit.TestSDK):
+    """
+    Tests upapi.up
+    """
 
     @mock.patch('upapi.base.UpApi', autospec=True)
     def test_up(self, mock_upapi):
@@ -57,6 +66,9 @@ class TestUp(tests.unit.TestSDK):
 
 
 class TestGetRedirectUrl(tests.unit.TestSDK):
+    """
+    Tests upapi.get_redirect_url
+    """
 
     @mock.patch('upapi.base.UpApi.get_redirect_url', autospec=True)
     def test_get_redirect_url(self, mock_redirect):
@@ -70,6 +82,9 @@ class TestGetRedirectUrl(tests.unit.TestSDK):
 
 
 class TestGetToken(tests.unit.TestSDK):
+    """
+    Tests upapi.get_token
+    """
 
     @mock.patch('upapi.up', autospec=True)
     def test_get_token(self, mock_up):
@@ -103,6 +118,9 @@ class TestGetToken(tests.unit.TestSDK):
 
 
 class TestRefreshToken(tests.unit.TestSDK):
+    """
+    Tests upapi.refresh_token
+    """
 
     @mock.patch('upapi.up', autospec=True)
     def test_refresh_token(self, mock_up):
@@ -133,6 +151,9 @@ class TestRefreshToken(tests.unit.TestSDK):
 
 
 class TestDisconnect(tests.unit.TestSDK):
+    """
+    Tests upapi.disconnect
+    """
 
     @mock.patch('upapi.up', autospec=True)
     def test_disconnect(self, mock_up):
@@ -152,6 +173,9 @@ class TestDisconnect(tests.unit.TestSDK):
 
 
 class TestGetUser(tests.unit.TestSDK):
+    """
+    Tests upapi.get_user
+    """
 
     @mock.patch('upapi.user.User', autospec=True)
     def test_get_user(self, mock_user):

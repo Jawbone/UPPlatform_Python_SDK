@@ -23,7 +23,17 @@ class User(upapi.base.UpApi):
         self.kwargs = kwargs
         self._friends = None
         super(User, self).__init__(*args, **kwargs)
+
+        #
+        # Hit the user endpoint and build the object
+        #
         resp_data = self.get(upapi.endpoints.USER)
+
+        #
+        # Initializing first and last to remove unresolved attribute warnings in the unit test code.
+        #
+        self.first = None
+        self.last = None
         for key, val in resp_data.iteritems():
             setattr(self, key, val)
 
