@@ -5,7 +5,36 @@ import mock
 import tests.unit
 import upapi
 import upapi.endpoints
+import upapi.exceptions
 import upapi.scopes
+
+
+class TestGetAccessToken(tests.unit.TestResource):
+
+    def test_get_access_token(self):
+        """
+        Verify access token getter.
+        """
+        #
+        # No creds, so getter should raise.
+        #
+        self.assertRaises(upapi.exceptions.MissingCredentials, upapi.get_access_token)
+
+        #
+        # Set creds and get the right token
+        #
+        upapi.credentials = self.credentials
+        self.assertEqual(upapi.get_access_token(), self.token)
+
+
+class TestSetAccessToken(tests.unit.TestSDK):
+
+    def test_set_access_token(self):
+        """
+        Verify the token is set correctly by trying to get it back.
+        """
+        upapi.set_access_token(self.token)
+        self.assertEqual(upapi.get_access_token(), self.token)
 
 
 class TestUp(tests.unit.TestSDK):
@@ -27,9 +56,7 @@ class TestUp(tests.unit.TestSDK):
             upapi.redirect_uri,
             app_scope=upapi.scope,
             credentials_saver=upapi.credentials_saver,
-            user_credentials=upapi.credentials,
-            token_saver=upapi.token_saver,
-            user_token=upapi.token)
+            user_credentials=upapi.credentials)
 
 
 class TestGetRedirectUrl(tests.unit.TestSDK):
@@ -50,14 +77,13 @@ class TestGetToken(tests.unit.TestSDK):
     @mock.patch('upapi.up', autospec=True)
     def test_get_token(self, mock_up):
         """
-        Verify that global token gets set.
+        Verify that global credentials get set.
 
         :param mock_up: mock UpApi getter
         """
         #
-        # Token and credentials not set yet.
+        # Credentials not set yet.
         #
-        self.assertIsNone(upapi.token)
         self.assertIsNone(upapi.credentials)
 
         #
@@ -70,12 +96,12 @@ class TestGetToken(tests.unit.TestSDK):
 
         #
         # Set the token and credentials. Then verify.
+        #
         callback_url = 'https://callback.url'
         token = upapi.get_token(callback_url)
         mock_up.assert_called_with()
         mock_up.return_value.get_up_token.assert_called_with(callback_url)
         self.assertEqual(token, self.token)
-        self.assertEqual(upapi.token, self.token)
         self.assertEqual(upapi.credentials, mock_up.return_value.credentials)
 
 
@@ -84,7 +110,7 @@ class TestRefreshToken(tests.unit.TestSDK):
     @mock.patch('upapi.up', autospec=True)
     def test_refresh_token(self, mock_up):
         """
-        Verify that global token gets set correctly when we refresh.
+        Verify that global credentials get set correctly when we refresh.
 
         :param mock_up: mock UpApi getter
         """
@@ -102,10 +128,10 @@ class TestRefreshToken(tests.unit.TestSDK):
         #
         # Refresh and test
         #
-        upapi.refresh_token()
+        token = upapi.refresh_token()
         mock_up.assert_called_with()
         mock_up.return_value.refresh_token.assert_called_with()
-        self.assertEqual(upapi.token, refreshed_token)
+        self.assertEqual(token, refreshed_token)
         self.assertEqual(upapi.credentials, mock_up.return_value.credentials)
 
 
@@ -114,11 +140,10 @@ class TestDisconnect(tests.unit.TestSDK):
     @mock.patch('upapi.up', autospec=True)
     def test_disconnect(self, mock_up):
         """
-        Verify that a disconnect makes the global token None.
+        Verify that a disconnect makes the global credentials None.
 
         :param mock_up: mock UpApi getter
         """
-        upapi.token = self.token
         upapi.credentials = self.credentials
 
         mock_up.return_value = mock.Mock('upapi.base.UpApi', autospec=True)
@@ -126,7 +151,6 @@ class TestDisconnect(tests.unit.TestSDK):
         upapi.disconnect()
         mock_up.assert_called_with()
         mock_up.return_value.disconnect.assert_called_with()
-        self.assertIsNone(upapi.token)
         self.assertIsNone(upapi.credentials)
 
 
@@ -146,6 +170,4 @@ class TestGetUser(tests.unit.TestSDK):
             upapi.redirect_uri,
             app_scope=upapi.scope,
             credentials_saver=upapi.credentials_saver,
-            user_credentials=upapi.credentials,
-            token_saver=upapi.token_saver,
-            user_token=upapi.token)
+            user_credentials=upapi.credentials)

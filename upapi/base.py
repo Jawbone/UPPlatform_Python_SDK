@@ -8,14 +8,16 @@ import json
 import oauth2client.client
 import upapi.endpoints
 import upapi.exceptions
+import upapi.meta
 import upapi.scopes
+import urllib
 import urlparse
 
 
 """
 Setting a specific User-Agent for analytics purposes.
 """
-SDK_VERSION = '0.5'
+SDK_VERSION = '0.6'
 USERAGENT = 'upapi/{} (https://developer.jawbone.com)'.format(SDK_VERSION)
 
 
@@ -30,9 +32,7 @@ class UpApi(object):
             app_redirect_uri,
             app_scope=None,
             credentials_saver=None,
-            user_credentials=None,
-            token_saver=None,
-            user_token=None):
+            user_credentials=None):
         """
         Create an UpApi object to manage the OAuth connection.
 
@@ -47,10 +47,6 @@ class UpApi(object):
             override any value passed in for user_token. If neither user_token or user_credentials are passed in, then
             the app must send the user through the OAuth flow and call the get_up_token method to retrieve the token
             and credentials.
-        :param token_saver: function to call to save a user's token dict when it gets updated. This function should take
-            a single argument, the dict returned from the UP API.
-        :param user_token: the dict containing access and refresh tokens returned from the UP API. This will only be
-            used if you do not pass in user_credentials.
         """
         self.app_id = app_id
         self.app_secret = app_secret
@@ -67,13 +63,6 @@ class UpApi(object):
 
         self.credentials_saver = credentials_saver
         self._credentials = user_credentials
-        self.token_saver = token_saver
-
-        #
-        # Make sure token and credentials match
-        #
-        if (self._credentials is None) and (user_token is not None):
-            self._credentials = self.token_to_creds(user_token)
 
         #
         # Initialize the OAuth objects.
@@ -192,14 +181,12 @@ class UpApi(object):
         """
         return self.flow.step1_get_authorize_url()
 
-    def call_savers(self):
+    def call_saver(self):
         """
-        If credential or token savers exist, call them.
+        If a credential saver exists, call it.
         """
         if self.credentials_saver is not None:
             self.credentials_saver(self.credentials)
-        if self.token_saver is not None:
-            self.token_saver(self.token)
 
     def get_up_token(self, callback_url):
         """
@@ -213,7 +200,7 @@ class UpApi(object):
         #
         code = urlparse.parse_qs(urlparse.urlparse(callback_url).query)['code'][0]
         self.credentials = self.flow.step2_exchange(code)
-        self.call_savers()
+        self.call_saver()
         return self.token
 
     def refresh_token(self):
@@ -226,7 +213,7 @@ class UpApi(object):
         #
         self.credentials.refresh(httplib2.Http())
         self._refresh_http()
-        self.call_savers()
+        self.call_saver()
         return self.token
 
     def _raise_for_status(self, ok_statuses):
@@ -238,7 +225,7 @@ class UpApi(object):
         if self.resp.status not in ok_statuses:
             raise upapi.exceptions.UnexpectedAPIResponse('{} {}'.format(self.resp.status, self.content))
 
-    def _request(self, url, method='GET'):
+    def _request(self, url, method='GET', data=None, ok_statuses=None):
         """
         Issue an HTTP request using the authorized Http object, handle bad responses, set the Meta object from the
         response content, and return the data as JSON.
@@ -247,8 +234,18 @@ class UpApi(object):
         :param method: HTTP method (e.g. GET, POST, etc.), defaults to GET
         :return: JSON data
         """
-        self.resp, self.content = self.http.request(url, method)
-        self._raise_for_status([httplib.OK])
+        #
+        # TODO: clean up the ability to send a POST and add unit tests.
+        #
+        if data is None:
+            req_body = None
+        else:
+            req_body = urllib.urlencode(data)
+        self.resp, self.content = self.http.request(url, method, body=req_body)
+
+        if ok_statuses is None:
+            ok_statuses = [httplib.OK]
+        self._raise_for_status(ok_statuses)
         resp_json = json.loads(self.content)
         self.meta = upapi.meta.Meta(**resp_json['meta'])
         return resp_json['data']
@@ -277,7 +274,7 @@ class UpApi(object):
         """
         self.delete(upapi.endpoints.DISCONNECT)
         self.credentials = None
-        self.call_savers()
+        self.call_saver()
 
     #
     # TODO: finish pubsub implementation.

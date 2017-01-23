@@ -161,7 +161,7 @@ class TestSystem(object):
         self.assert_equal(meta.user_xid, self.test_user['xid'])
         self.assert_equal(meta.message, httplib.responses[httplib.OK])
         self.assert_equal(meta.code, httplib.OK)
-        self.assert_datetime_within(meta.time)
+        self.assert_datetime_within(meta.time, window=11)
 
     def run(self):
         """
@@ -217,6 +217,46 @@ class TestGetRedirectUrl(TestSystem):
         self.assert_equal(redirect_url, self.expected_url)
 
 
+class TestSetGetAccessToken(TestSystem):
+    """
+    Test upapi.set_access_token and upapi.get_access_token
+    """
+    def __init__(self):
+        super(TestSetGetAccessToken, self).__init__('upapi.set/get_access_token')
+
+    def _run(self):
+        """
+        Verify that set correctly sets the credentials object and that get returns the token.
+        """
+        #
+        # Token was already set during upapi initialization, so verify credentials
+        #
+        creds = upapi.credentials
+        self.assert_equal(creds.access_token, secrets['test_user']['token']['access_token'])
+        self.assert_equal(creds.client_id, upapi.client_id)
+        self.assert_equal(creds.client_secret, upapi.client_secret)
+        self.assert_equal(creds.refresh_token, secrets['test_user']['token']['refresh_token'])
+
+        #
+        # Expiry should match expires_in.
+        #
+        next_year = datetime.datetime.now()
+        next_year = next_year + datetime.timedelta(seconds=secrets['test_user']['token']['expires_in'])
+        self.assert_datetime_within(creds.token_expiry, expected=next_year)
+
+        self.assert_equal(creds.token_uri, secrets['web']['token_uri'])
+        self.assert_equal(creds.user_agent, upapi.base.USERAGENT)
+        self.assert_none(creds.revoke_uri)
+        self.assert_equal(creds.token_response, secrets['test_user']['token'])
+        self.assert_equal(creds.scopes, set(upapi.scope))
+        self.assert_none(creds.token_info_uri)
+
+        #
+        # Getter should give back the original token
+        #
+        self.assert_equal(upapi.get_access_token(), secrets['test_user']['token'])
+
+
 class TestRefreshToken(TestSystem):
     """
     Test upapi.refresh_token
@@ -225,20 +265,20 @@ class TestRefreshToken(TestSystem):
         """
         Grab the old token
         """
-        self.old_token = upapi.token
+        self.old_token = upapi.get_access_token()
         super(TestRefreshToken, self).__init__('upapi.refresh_token')
 
     def _run(self):
         """
         Verify token and credentials refreshed correctly.
         """
-        self.assert_none(upapi.credentials)
+        self.assert_equal(upapi.get_access_token(), secrets['test_user']['token'])
         upapi.refresh_token()
 
         #
         # Verify token
         #
-        new_token = upapi.token
+        new_token = upapi.get_access_token()
         self.assert_not_none(new_token['access_token'])
         self.assert_equal(new_token['token_type'], self.old_token['token_type'])
         self.assert_time_within(new_token['expires_in'], self.old_token['expires_in'])
@@ -258,7 +298,7 @@ class TestRefreshToken(TestSystem):
         #
         next_year = datetime.datetime.now()
         next_year = next_year.replace(year=next_year.year + 1)
-        self.assert_datetime_within(new_creds.token_expiry, expected=next_year, window=4*60*60)
+        self.assert_datetime_within(new_creds.token_expiry, expected=next_year, window=5*60*60)
 
         self.assert_equal(new_creds.token_uri, secrets['web']['token_uri'])
         self.assert_equal(new_creds.user_agent, upapi.base.USERAGENT)
@@ -313,6 +353,7 @@ class TestFriends(TestSystem):
 #
 TESTS = [
     TestGetRedirectUrl,
+    TestSetGetAccessToken,
     TestRefreshToken,
     TestUser,
     TestFriends
@@ -327,7 +368,7 @@ if __name__ == '__main__':
     upapi.client_secret = secrets['web']['client_secret']
     upapi.redirect_uri = secrets['web']['redirect_uris'][0]
     upapi.scope = [upapi.scopes.EXTENDED_READ]
-    upapi.token = secrets['test_user']['token']
+    upapi.set_access_token(secrets['test_user']['token'])
 
     #
     # Run the tests.

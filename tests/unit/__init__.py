@@ -52,7 +52,7 @@ class TestUserResource(TestResource):
                 self.app_id,
                 self.app_secret,
                 app_redirect_uri=self.app_redirect_uri,
-                user_token=self.token)
+                user_credentials=self.credentials)
 
 
 class TestSDK(unittest.TestCase):

@@ -29,8 +29,6 @@ upapi.client_id = <Client Id>
 upapi.client_secret = <App Secret>
 upapi.redirect_uri = <OAuth redirect URL>
 upapi.scope = [upapi.scopes.<Scope0>, upapi.scopes.<Scope1>,...]
-upapi.credentials_saver = <credentials_saver>
-upapi.token_saver = <token_saver>
 ```
 
 You can find your **Client Id** and **App Secret** in your Application Details (click on your app in the bottom left of the nav on the UP Developer Portal).
@@ -43,17 +41,6 @@ The [```upapi.scopes```](https://github.com/Jawbone/UPPlatform_Python_SDK/blob/m
 In this context, a token is the access token returned by the [UP Authentication APIs](https://jawbone.com/up/developer/authentication) during the OAuth flow.
 
 Credentials on the other hand refers to the [oauth2client.client.OAuth2Credentials](https://oauth2client.readthedocs.io/en/latest/source/oauth2client.client.html#oauth2client.client.OAuth2Credentials) object that the oauth2client library creates when using the library to retrieve the access token.
-
-If you specify a ```credentials_saver``` and/or a ```token_saver``` function, then the SDK will automatically call it whenever a token changes:
-- fetching a new token
-- refreshing an existing token
-- disconnecting a token
-
-The ```credentials_saver``` function should take the credentials object as its only argument. OAuth2Credentials objects may be safely pickled and unpickled.
-
-The ```token_saver``` function should take the token as its only argument. 
-
-On disconnect, the credentials and/or token passed in will be ```None```.
 
 ## Authentication
 The UP API uses OAuth2 to grant access to user data. For details, please read the [Authentication documentation](https://jawbone.com/up/developer/authentication).
@@ -70,37 +57,42 @@ The SDK provides a helper function to generate an application-specific UP login 
 url = upapi.get_redirect_url()
 ```
 
-#### Get the access token
-After the user grants access to your application, the UP API redirects the user back to the URL you specified with an **authorization_code**. You then need to exchange this code for an access token. Pass the entire URL to the ```get_token``` function to do this.
+#### Get the access token and/or credentials
+After the user grants access to your application, the UP API redirects the user back to the URL you specified with an **authorization_code**. You then need to exchange this code for an access token. Pass the entire URL to the ```get_token``` function to do this. Additionally, the ```get_token``` function will create a **credentials** object based on the access token. You can retrieve the credentials object from the ```upapi.credentials``` parameter.
 ```python
 token = upapi.get_token(url)
+credentials = upapi.credentials
 ```
 
 ### Returning Users
-Once a user has granted your application access to UP data, you can save the access token for re-use on subsequent interactions with the UP API.
+Once a user has granted your application access to UP data, you can save the access token or credentials object for re-use on subsequent interactions with the UP API.
 
-#### Set Token or Credentials
-After you have initialized the SDK according to the instructions above, all you need to do is set the value of the token or credentials parameter. If you set both, the SDK will use credentials.
+#### Set Credentials (or Token)
+After you have initialized the SDK according to the instructions above, all you need to do is set the value of the ```credentials``` parameter. 
 ```python
 upapi.credentials = <credentials>
-upapi.token = <token>
+```
+The SDK uses a credentials object rather than the token directly because the credentials object automatically tracks token expiration rather than requiring your application to handle it manually. However, if you would prefer to only interact with tokens, you can use the following helper functions, which will set/get an access token to/from the credentials object:
+```python
+upapi.set_access_token(<token>)
+token = upapi.get_access_token()
 ```
 
-Note: if this is the same session in which you authenticated this user, the SDK will automatically set the value of ```upapi.token``` and ```upapi.credentials``` when you call ```upapi.get_token```.
+Note: if this is the same session in which you authenticated this user, the SDK will automatically set the value of ```upapi.credentials``` when you call ```upapi.get_token```.
 
 #### Refreshing Tokens
 The UP API OAuth2 tokens will expire after one year, so you will need to refresh them. 
 ```python
-upapi.refresh_token()
+token = upapi.refresh_token()
 ```
-This will use the existing value of ```upapi.credentials``` or ```upapi.token``` to get a new token and then set it as the new value of ```upapi.credentials``` and ```upapi.token```.
+This will use the existing value of ```upapi.credentials``` to return a new token as well as update ```upapi.credentials```.
 
 #### Disconnecting Users
 In certain instances, you will need to disconnect a user from your application and the UP API. The [Disconnection documentation](https://jawbone.com/up/developer/disconnection) provides details on when and how this can happen.
 ```python
 upapi.disconnect()
 ```
-This will use the existing value of ```upapi.token``` to send a disconnection request to the API and then clear the values of ```upapi.credentials``` and ```upapi.token```.
+This will use the existing value of ```upapi.credentials``` to send a disconnection request to the API and then clear the value of ```upapi.credentials```.
 
 ## User
 The SDK creates [```User```](https://github.com/Jawbone/UPPlatform_Python_SDK/blob/master/upapi/user/__init__.py#L11) objects to represent the data available from the [User endpoint](https://jawbone.com/up/developer/endpoints/user). The easiest way to get the current user's object is to initialize the SDK and then run:

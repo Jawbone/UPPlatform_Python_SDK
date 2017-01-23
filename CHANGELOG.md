@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/) 
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+### Added
+- ```upapi.set_access_token(<token>)``` and ```upapi.get_access_token()``` to replace the set/get functionality that was in ```upapi.token```.
+
+### Changed
+- Refactored the ```UpApi``` object to only initialize with credentials objects instead of tokens.
+
+### Removed
+- ```upapi.token``` no longer exists. Use ```upapi.credentials``` or the new token getter/setter functions.
+- ```upapi.token_saver``` no longer exists. You will have to save updated tokens manually.
+
 ## [0.5] - 2017-01-12
 ### Added
 - ```user.get_friends()``` to retrieve/refresh the friends list
