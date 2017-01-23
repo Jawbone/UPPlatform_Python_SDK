@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/) 
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Unreleased]
+## [0.6] - 2017-01-23
 ### Added
 - ```upapi.set_access_token(<token>)``` and ```upapi.get_access_token()``` to replace the set/get functionality that was in ```upapi.token```.
 
