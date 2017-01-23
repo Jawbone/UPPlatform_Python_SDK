@@ -17,7 +17,7 @@ import urlparse
 """
 Setting a specific User-Agent for analytics purposes.
 """
-SDK_VERSION = '0.6'
+SDK_VERSION = '0.7'
 USERAGENT = 'upapi/{} (https://developer.jawbone.com)'.format(SDK_VERSION)
 
 
