@@ -9,6 +9,9 @@ import upapi.user.friends
 
 
 class TestFriends(tests.unit.TestResource):
+    """
+    Tests upapi.user.friends.Friends
+    """
     
     @mock.patch('upapi.user.friends.Friends.get', autospec=True)
     def test___init__(self, mock_get):
@@ -35,8 +38,14 @@ class TestFriends(tests.unit.TestResource):
 
 
 class TestFriend(unittest.TestCase):
+    """
+    Tests upapi.user.friends.Friend
+    """
 
     def test__init__(self):
+        """
+        Verify Friend object creation.
+        """
         data = {'xid': 'xid'}
         test_friend = upapi.user.friends.Friend(data)
         self.assertEqual(test_friend.xid, data['xid'])

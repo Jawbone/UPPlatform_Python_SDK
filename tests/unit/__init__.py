@@ -25,6 +25,8 @@ class TestResource(unittest.TestCase):
         self.credentials = mock.Mock(spec='oauth2client.client.OAuth2Credentials')
         self.credentials.token_response = self.token
         self.credentials.authorize = mock.Mock(spec_set='oauth2client.client.OAuth2Credentials.authorize')
+        self.credentials.set_store = mock.Mock(spec_set='oauth2client.client.OAuth2Credentials.set_store')
+        self.creds_storage = mock.Mock(spec_set='oauth2client.client.Storage')
         self.mock_creds_saver = mock.Mock(spec=['credentials'])
         self.mock_token_saver = mock.Mock(spec=['token'])
 
@@ -37,6 +39,11 @@ class TestResource(unittest.TestCase):
             self.app_secret,
             self.app_redirect_uri,
             user_credentials=self.credentials)
+        self.upstore = upapi.base.UpApi(
+            self.app_id,
+            self.app_secret,
+            self.app_redirect_uri,
+            credentials_storage=self.creds_storage)
 
 
 class TestUserResource(TestResource):

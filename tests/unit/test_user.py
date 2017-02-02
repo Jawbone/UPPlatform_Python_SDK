@@ -8,6 +8,9 @@ import upapi.user
 
 
 class TestUser(tests.unit.TestUserResource):
+    """
+    Tests upapi.user
+    """
 
     @mock.patch('upapi.user.User.get', autospec=True)
     def test___init__(self, mock_get):
@@ -57,6 +60,8 @@ class TestUser(tests.unit.TestUserResource):
     def test_get_friends(self, mock_friends):
         """
         Verify call to create Friends object
+
+        :param mock_friends: mocked Friends object
         """
         #
         # _friends should start as None

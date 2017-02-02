@@ -17,7 +17,7 @@ import urlparse
 """
 Setting a specific User-Agent for analytics purposes.
 """
-SDK_VERSION = '0.6'
+SDK_VERSION = '0.7'
 USERAGENT = 'upapi/{} (https://developer.jawbone.com)'.format(SDK_VERSION)
 
 
@@ -31,7 +31,7 @@ class UpApi(object):
             app_secret,
             app_redirect_uri,
             app_scope=None,
-            credentials_saver=None,
+            credentials_storage=None,
             user_credentials=None):
         """
         Create an UpApi object to manage the OAuth connection.
@@ -41,8 +41,8 @@ class UpApi(object):
         :param app_redirect_uri: one of your OAuth redirect URLs
         :param app_scope: list of permissions a user will have to approve (see upapi.scopes). Defaults to
             upapi.scopes.BASIC_READ
-        :param credentials_saver: function to call to save a user's credentials when they get updated. This function
-            should take an oauth2client.client.OAuth2Credentials object.
+        :param credentials_storage: an instance of oauth2client.client.Storage used to save the credentials object when
+            automatically refreshed.
         :param user_credentials: oauth2client.client.OAuth2Credentials object from a previously OAuth'd user. This will
             override any value passed in for user_token. If neither user_token or user_credentials are passed in, then
             the app must send the user through the OAuth flow and call the get_up_token method to retrieve the token
@@ -61,8 +61,12 @@ class UpApi(object):
         else:
             self.app_scope = app_scope
 
-        self.credentials_saver = credentials_saver
-        self._credentials = user_credentials
+        #
+        # Set storage first, so that set_store gets called when setting credentials.
+        #
+        self.credentials_storage = credentials_storage
+        self._credentials = None
+        self.credentials = user_credentials
 
         #
         # Initialize the OAuth objects.
@@ -145,11 +149,13 @@ class UpApi(object):
     @credentials.setter
     def credentials(self, new_creds):
         """
-        Update the credentials and refresh the oauth objects.
+        Update the credentials, set storage if it exists, and refresh the oauth objects.
 
         :param new_creds: new OAuth2Credentials object
         """
         self._credentials = new_creds
+        if (self.credentials_storage is not None) and (self._credentials is not None):
+            self._credentials.set_store(self.credentials_storage)
         self._refresh_http()
 
     @property
@@ -181,17 +187,10 @@ class UpApi(object):
         """
         return self.flow.step1_get_authorize_url()
 
-    def call_saver(self):
-        """
-        If a credential saver exists, call it.
-        """
-        if self.credentials_saver is not None:
-            self.credentials_saver(self.credentials)
-
     def get_up_token(self, callback_url):
         """
         Retrieve a token after the user has logged in and approved your app (i.e., second half of the OAuth handshake).
-        Set the token in the object, and call the savers.
+        Then set the credentials in the object.
 
         :param callback_url: The full URL on your server that Jawbone sent the user back to
         """
@@ -200,7 +199,6 @@ class UpApi(object):
         #
         code = urlparse.parse_qs(urlparse.urlparse(callback_url).query)['code'][0]
         self.credentials = self.flow.step2_exchange(code)
-        self.call_saver()
         return self.token
 
     def refresh_token(self):
@@ -213,7 +211,6 @@ class UpApi(object):
         #
         self.credentials.refresh(httplib2.Http())
         self._refresh_http()
-        self.call_saver()
         return self.token
 
     def _raise_for_status(self, ok_statuses):
@@ -274,7 +271,6 @@ class UpApi(object):
         """
         self.delete(upapi.endpoints.DISCONNECT)
         self.credentials = None
-        self.call_saver()
 
     #
     # TODO: finish pubsub implementation.

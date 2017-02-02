@@ -4,7 +4,7 @@ This script performs end-to-end system tests. To run it:
 2. Enter upsims and create a test user for your test application
 3. Run the OAuth flow with the test user to capture a token
 4. Create other upsim users and have them add your original test user as friends in the app.
-5. Using the keys, token, and test user data, create a client_secrets.json file in the tests/system directory
+5. Using the keys, token, and test user data, create a client_secrets.json file in the tests/system directory.
 
 Format of client_secrets.json:
 
@@ -23,6 +23,7 @@ Format of client_secrets.json:
       "expires_in": 31536000,
       "refresh_token": <refresh_token>
     },
+    "storage_filename": "test_user.creds",
     "xid": "",
     "first": "",
     "last": "",
@@ -37,6 +38,8 @@ Format of client_secrets.json:
 import datetime
 import httplib
 import json
+import oauth2client.file
+import os.path
 import traceback
 import upapi
 import upapi.base
@@ -257,6 +260,44 @@ class TestSetGetAccessToken(TestSystem):
         self.assert_equal(upapi.get_access_token(), secrets['test_user']['token'])
 
 
+class TestStorage(TestSystem):
+    """
+    Test use of credentials storage object during auto-refresh.
+    """
+    def __init__(self):
+        """
+        Clear the storage if it exists.
+        """
+        if os.path.isfile(secrets['test_user']['storage_filename']):
+            upapi.credentials_storage.locked_delete()
+        super(TestStorage, self).__init__('upapi.credentials_storage')
+
+    def _run(self):
+        """
+        Trigger auto-refresh on the token. Verify storage object gets updated.
+        """
+        bad_token = secrets['test_user']['token'].copy()
+        bad_token['access_token'] = ''
+        upapi.set_access_token(bad_token)
+        upapi.get_user()
+
+        #
+        # Verify creds
+        #
+        stored_creds = upapi.credentials_storage.locked_get()
+        self.assert_equal(stored_creds.access_token, upapi.credentials.access_token)
+        self.assert_equal(stored_creds.client_id, upapi.client_id)
+        self.assert_equal(stored_creds.client_secret, upapi.client_secret)
+        self.assert_equal(stored_creds.refresh_token, upapi.credentials.refresh_token)
+        self.assert_datetime_within(stored_creds.token_expiry, upapi.credentials.token_expiry)
+        self.assert_equal(stored_creds.token_uri, upapi.credentials.token_uri)
+        self.assert_equal(stored_creds.user_agent, upapi.credentials.user_agent)
+        self.assert_none(stored_creds.revoke_uri)
+        self.assert_equal(stored_creds.token_response, upapi.credentials.token_response)
+        self.assert_equal(stored_creds.scopes, upapi.credentials.scopes)
+        self.assert_none(stored_creds.token_info_uri)
+
+
 class TestRefreshToken(TestSystem):
     """
     Test upapi.refresh_token
@@ -272,7 +313,6 @@ class TestRefreshToken(TestSystem):
         """
         Verify token and credentials refreshed correctly.
         """
-        self.assert_equal(upapi.get_access_token(), secrets['test_user']['token'])
         upapi.refresh_token()
 
         #
@@ -313,9 +353,6 @@ class TestUser(TestSystem):
     Test upapi.get_user
     """
     def __init__(self):
-        """
-        Set the expected user data.
-        """
         super(TestUser, self).__init__('upapi.get_user')
 
     def _run(self):
@@ -354,10 +391,10 @@ class TestFriends(TestSystem):
 TESTS = [
     TestGetRedirectUrl,
     TestSetGetAccessToken,
+    TestStorage,
     TestRefreshToken,
     TestUser,
-    TestFriends
-]
+    TestFriends]
 
 
 if __name__ == '__main__':
@@ -368,6 +405,7 @@ if __name__ == '__main__':
     upapi.client_secret = secrets['web']['client_secret']
     upapi.redirect_uri = secrets['web']['redirect_uris'][0]
     upapi.scope = [upapi.scopes.EXTENDED_READ]
+    upapi.credentials_storage = oauth2client.file.Storage(secrets['test_user']['storage_filename'])
     upapi.set_access_token(secrets['test_user']['token'])
 
     #

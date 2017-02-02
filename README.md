@@ -29,6 +29,7 @@ upapi.client_id = <Client Id>
 upapi.client_secret = <App Secret>
 upapi.redirect_uri = <OAuth redirect URL>
 upapi.scope = [upapi.scopes.<Scope0>, upapi.scopes.<Scope1>,...]
+upapi.credentials_storage = <Storage object>
 ```
 
 You can find your **Client Id** and **App Secret** in your Application Details (click on your app in the bottom left of the nav on the UP Developer Portal).
@@ -36,6 +37,8 @@ You can find your **Client Id** and **App Secret** in your Application Details (
 **OAuth redirect URL** must be one of the URLs you specified when creating your application. If you have multiple URLs, you can change the value of ```upapi.redirect_uri``` as necessary.
 
 The [```upapi.scopes```](https://github.com/Jawbone/UPPlatform_Python_SDK/blob/master/upapi/scopes.py) module provides a list of all the available scopes. You can find scope definitions in the [UP API Authentication documentation](https://jawbone.com/up/developer/authentication).
+
+Set ```upapi.credentials_storage``` to an instance of [oauth2client.client.Storage](http://oauth2client.readthedocs.io/en/latest/source/oauth2client.client.html#oauth2client.client.Storage) to ensure tokens/credentials get saved when automatically refreshed. For more details, refer to the [Automatic Refresh and Storage Objects](#automatic-refresh-and-storage-objects) section.
 
 #### Token vs. Credentials
 In this context, a token is the access token returned by the [UP Authentication APIs](https://jawbone.com/up/developer/authentication) during the OAuth flow.
@@ -80,8 +83,18 @@ token = upapi.get_access_token()
 
 Note: if this is the same session in which you authenticated this user, the SDK will automatically set the value of ```upapi.credentials``` when you call ```upapi.get_token```.
 
-#### Refreshing Tokens
-The UP API OAuth2 tokens will expire after one year, so you will need to refresh them. 
+#### Refreshing Tokens/Credentials
+The UP API OAuth2 tokens will expire after one year, so you will need to refresh them. Luckily, the SDK will refresh them for you automatically. Whenever the UP APIs return a ```401 Unauthorized``` response, the SDK will make two attempts to refresh the token and credentials. After refresh, the old values will stop working, so you should save the new ones for future requests.
+
+##### Automatic Refresh and Storage Objects
+Automatic token/credentials refresh occurs in the internal workings of the SDK, and the only way to know that a refresh occurred is to see if the value has changed. Rather than doing this manually, you can create a *Storage* object and assign it to ```upapi.credentials_storage```.
+```python
+upapi.credentials_storage = <Storage object>
+```
+When a Storage object exists, the SDK will use it to save the credentials whenever they are automatically refreshed. For more details on how to create a Storage object, refer to the [Storage documentation](https://developers.google.com/api-client-library/python/guide/aaa_oauth#storage).
+
+##### Manual Refresh
+You can always manually refresh tokens by calling ```upapi.refresh_token```:
 ```python
 token = upapi.refresh_token()
 ```
