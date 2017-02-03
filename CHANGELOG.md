@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/) 
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [0.7.1] - Unreleased
+## [0.7.1] - 2017-02-03
 ### Added
 - Files to register the package on [pypi](https://pypi.python.org/pypi/upapi)
 
