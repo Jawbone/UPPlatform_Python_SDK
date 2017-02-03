@@ -12,12 +12,9 @@ Visit the [UP Developer Portal](https://jawbone.com/up/developer/) and click [Si
 Once you have signed in, you can create a new application by clicking the **Create App** button on your [account page](https://jawbone.com/up/developer/account). Fill out the form with the specific details for your application. If you don't know what to put for the URLs, review the [Authentication documentation](https://jawbone.com/up/developer/authentication).
 
 ### Install the SDK
-***When active development stops, we will put this on pypi. For now, installation is a bit manual.***
-
-1. Download/clone/fork this repository into your application's PYTHONPATH.
-1. Install the dependencies.
+The SDK exists on [pypi](https://pypi.python.org/pypi/upapi), so the easiest way to install it is to use pip:
 ```bash
-pip install -r upapi/requirements.txt
+pip install upapi
 ```
 
 ### Initialize the SDK
